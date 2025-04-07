@@ -584,26 +584,6 @@ public:
         Py_Finalize();
     }
 
-    vector<double> DNA_Channel_Simu(vector<int> CodeWrd_Tx, double Noise_Lvl) {
-        /*Add some noise to the CodeWord to simulate the DNA channel.
-        * Args:
-        *   CodeWrd: The input codeword.
-        *   Noise_Lvl: Noise level of the DNA Channel. A value range from 0 - 1.
-        * Output:
-        *   CodeWrd_Rx: The received codeword after the channel.
-        */
-        int n = CodeWrd_Tx.size();
-        int ranNum;
-        double noise;
-        vector<double> CodeWrd_Rx(n);
-        for (int i = 0; i < n; ++i)
-        {
-            ranNum = rand() % 101;//Generate a random number from 0 to 1.
-            noise = ranNum * Noise_Lvl * 0.01;
-            CodeWrd_Rx[i] = CodeWrd_Tx[i] ? CodeWrd_Tx[i] - noise : CodeWrd_Tx[i] + noise;
-        }
-        return CodeWrd_Rx;
-    }
 };
 
 
