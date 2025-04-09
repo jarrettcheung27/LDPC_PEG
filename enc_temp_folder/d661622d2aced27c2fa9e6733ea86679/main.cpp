@@ -330,7 +330,7 @@ private:
     vector<double> CodeWord_Rx;    // 信道输出
     vector<double> llr;            // 计算出的LLR结果
     vector<int> Msg_Rx;            // 恢复的信息比特
-    //vector<int> Permutation;         // 高斯消元时的交换信息
+    vector<int> Permutation;         // 高斯消元时的交换信息
     
     // 返回正负号：x>=0 返回1，否则返回-1
     inline int sign(double x) {
@@ -349,7 +349,7 @@ public:
         iterations = Maxiter;
         numInfBits = numTotBits - numParBits;
         Z = z;
-        //Permutation = checkMatrix.Permutation;
+        Permutation = checkMatrix.Permutation;
     }
 
     // Function to convert to voting score to LLR
@@ -449,7 +449,6 @@ public:
         }
         return move(Msg_Rx);
     }
-    /*
     void Restore_Order() {
         vector<int> Msg_Rx_temp(Msg_Rx);
         // 根据Permutation恢复原来的顺序
@@ -460,7 +459,6 @@ public:
         Msg_Rx = Msg_Rx_temp;
         //delete & Msg_Rx_temp;
     }
-    */
     void PrintDecodeRes() {
         //Output the result of the decoder.
         
