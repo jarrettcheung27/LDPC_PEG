@@ -576,7 +576,7 @@ public:
             PyErr_Print();
             throw runtime_error("µ÷ÓÃ DNAChannel Ê§°Ü£¡");
         }
-        return msgRx;
+        return move(msgRx);
     }
 
     void CloseChannel() {
