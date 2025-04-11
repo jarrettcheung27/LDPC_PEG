@@ -543,12 +543,12 @@ public:
         PyTuple_SetItem(pArgs, 1, PyFloat_FromDouble(Noise_Lvl));
         PyTuple_SetItem(pArgs, 2, PyLong_FromLong(sequencingDepth));
         PyTuple_SetItem(pArgs, 3, PyLong_FromLong(innerRedundancy));
-        //Py_XDECREF(pList);
+
 
         // 调用 Python 函数 PyDNAChannel(list-of-lists, Noise_Lvl)
         pValue = PyObject_CallObject(pFunc, pArgs);
         Py_XDECREF(pArgs);
-
+        Py_XDECREF(pList);
         if (pValue != NULL) {
             // pValue 应该是一个 list-of-lists，对其进行转换
             if (PyList_Check(pValue)) {
@@ -576,13 +576,13 @@ public:
             PyErr_Print();
             throw runtime_error("调用 DNAChannel 失败！");
         }
+
         return move(msgRx);
     }
 
     void CloseChannel() {
         Py_XDECREF(pFunc);
         Py_XDECREF(pModule);
-        Py_XDECREF(pList); // 确保释放所有动态分配的 Python 对象
         Py_Finalize();
     }
 
@@ -680,7 +680,6 @@ int main(int argc, char* argv[]) {
 
         //======================Call DNA Channle in Python======================//
         codeWrds_Rx = DNAChannel.DNAChal(codeWrds_Tx, NoiseLvl, sequencingDepth, innerRedundancy);
-
         //======================LDPC Decoding and Calculation of FER========================//
         int errorCount = 0; // 用于统计错误序列的数量
         for (int i = 0; i < sequenceNum; ++i) {
@@ -700,7 +699,10 @@ int main(int argc, char* argv[]) {
     }
 
     // 关闭，Python
-    DNAChannel.CloseChannel();
+	DNAChannel.CloseChannel();
+	// 计算总的错误帧数
+	cout << "\nTotal Error Frame: " << totErrorFrame << endl;
+	// 计算 FER
 	int FER = totErrorFrame / (RepetitionRequired * sequenceNum); // 计算帧错误率
     // 保存文件，并使用throw命令保存当前的调试信息。
     // 以追加模式打开文件并写入数据行
