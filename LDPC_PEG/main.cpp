@@ -657,7 +657,7 @@ int main(int argc, char* argv[]) {
     Duration Simu;
     Simu.simuStart();//记录实验开始的时间
     //继续增加实验次数的条件：试验次数小于要求的次数；没有出现错误帧。
-    for (int exp = 0; exp < RepetitionRequired  && firsErrorFrame == -1; ++exp) {
+    for (int exp = 0; exp < RepetitionRequired ; ++exp) {
         Simu.expStart();//记录本次实验开始的时间
         cout << "\n\n=========================== " << "Experiment " << exp + 1 << " / " << RepetitionRequired <<" ===========================" << endl;
         //======================Generate Random Messages======================//
