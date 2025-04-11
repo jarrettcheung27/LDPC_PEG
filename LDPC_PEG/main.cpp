@@ -571,6 +571,9 @@ public:
                 throw runtime_error("返回结果不是列表格式！");
             }
             Py_XDECREF(pValue);
+            Py_XDECREF(pInner);
+            Py_XDECREF(pNum);
+            Py_XDECREF(pRow);
         }
         else {
             PyErr_Print();
@@ -579,6 +582,7 @@ public:
 
         return move(msgRx);
     }
+
 
     void CloseChannel() {
         Py_XDECREF(pFunc);
@@ -681,13 +685,26 @@ int main(int argc, char* argv[]) {
         //======================Call DNA Channle in Python======================//
         codeWrds_Rx = DNAChannel.DNAChal(codeWrds_Tx, NoiseLvl, sequencingDepth, innerRedundancy);
         //======================LDPC Decoding and Calculation of FER========================//
-        int errorCount = 0; // 用于统计错误序列的数量
         for (int i = 0; i < sequenceNum; ++i) {
             cout << "LDPC decoding..." << i + 1 << "/" << sequenceNum << "\r";
             Decoder.to_LLR(codeWrds_Rx[i]);
             msgsRx[i] = Decoder.Decode();
-            if (HammingDistance(msgsTx[i], msgsRx[i]) != 0) {
-                errorCount++; // 如果有错误，计数器加1
+        }
+        int errorCount = 0; // 用于统计错误帧的数量
+        // 遍历每一列
+        for (int col = 0; col < msgsTx[0].size(); ++col) {
+            bool hasError = false; // 标记当前列是否存在错误比特
+
+            // 遍历每一行，检查当前列是否有错误比特
+            for (int row = 0; row < sequenceNum; ++row) {
+                if (msgsTx[row][col] != msgsRx[row][col]) {
+                    hasError = true; // 如果发现错误比特，标记为 true
+                    break; // 退出当前列的检查
+                }
+            }
+
+            if (hasError) {
+                errorCount++; // 如果当前列有错误比特，错误帧计数器加 1
             }
         }
         //double FER = static_cast<double>(errorCount) / sequenceNum; // 计算帧错误率
@@ -703,7 +720,7 @@ int main(int argc, char* argv[]) {
 	// 计算总的错误帧数
 	cout << "\nTotal Error Frame: " << totErrorFrame << endl;
 	// 计算 FER
-	int FER = totErrorFrame / (RepetitionRequired * sequenceNum); // 计算帧错误率
+    double FER = static_cast<double>(totErrorFrame) / 1e6; // 计算帧错误率
     // 保存文件，并使用throw命令保存当前的调试信息。
     // 以追加模式打开文件并写入数据行
     ofstream outfile(filePathData, ios::app);
@@ -712,12 +729,14 @@ int main(int argc, char* argv[]) {
         system("pause");
         return 1;
     }
-    outfile << fixed << setprecision(2) << NoiseLvl << ","
-        << sequencingDepth << ","
-        << R_o << ","
-        << R_i << ","
-        << FER << ","
-        << sequencingCost << "\n";
+    // 写入数据行
+    outfile << fixed << setprecision(2) << NoiseLvl << "," // 保留两位小数
+        << sequencingDepth << ","                     // 保留两位小数
+        << R_o << ","                                 // 保留两位小数
+        << R_i << ","                                 // 保留两位小数
+        << fixed << setprecision(6) << FER << ","     // 设置 FER 的精度为 1e-6
+        << fixed << setprecision(2) << sequencingCost // 保留两位小数
+        << "\n";
     outfile.close();
     cout << "\nSimulation data saved to Experiment.csv" << endl;
     system("pause");
