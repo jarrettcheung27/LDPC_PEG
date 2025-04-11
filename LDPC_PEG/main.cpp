@@ -682,21 +682,22 @@ int main(int argc, char* argv[]) {
         codeWrds_Rx = DNAChannel.DNAChal(codeWrds_Tx, NoiseLvl, sequencingDepth, innerRedundancy);
 
         //======================LDPC Decoding and Calculation of FER========================//
+        //======================LDPC Decoding and Calculation of FER========================//
+        int errorCount = 0; // 用于统计错误序列的数量
         for (int i = 0; i < sequenceNum; ++i) {
             cout << "LDPC decoding..." << i + 1 << "/" << sequenceNum << "\r";
             Decoder.to_LLR(codeWrds_Rx[i]);
             msgsRx[i] = Decoder.Decode();
             if (HammingDistance(msgsTx[i], msgsRx[i]) != 0) {
-                firsErrorFrame = exp * K + i + 1;
-                cout << "\nFER != 0, " << i + 1 << "/" << sequenceNum << endl;
-                cout << "End of this experiemnt." << endl;
-                //system("pause");
-                //return 0;
-                break;
+                errorCount++; // 如果有错误，计数器加1
             }
         }
-        //计算仿真完成的时间
+        //double FER = static_cast<double>(errorCount) / sequenceNum; // 计算帧错误率
+        cout << "\nError Frame of this experiment: " << errorCount << endl;
+
+        // 计算仿真完成的时间
         Simu.completionTime(RepetitionRequired);
+
     }
     // 关闭，Python
     DNAChannel.CloseChannel();
@@ -715,7 +716,7 @@ int main(int argc, char* argv[]) {
         << firsErrorFrame << ","
         << sequencingCost << "\n";
     outfile.close();
-    cout << "Simulation data saved to Experiment.csv" << endl;
+    cout << "\nSimulation data saved to Experiment.csv" << endl;
     system("pause");
     return 0;
 }
