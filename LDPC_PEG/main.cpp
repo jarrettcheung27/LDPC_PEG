@@ -647,7 +647,7 @@ int main(int argc, char* argv[]) {
     // 启动，初始化Python Channel
     Channel DNAChannel;
     DNAChannel.InitializeChannel();
-    int firsErrorFrame = -1; //记录第一个错误帧出现的地方
+	int totErrorFrame = 0; // 统计总错误帧的数量
     int RepetitionRequired = ceil(1e6 / (CheckMtx.N - CheckMtx.M)); //Minmal Experimental Repetition Required to achieve 1e-6 FER.
     vector<vector<double>> codeWrds_Rx(sequenceNum, vector<double>(N)); //Container for the channel output.
     // 初始化LDPC译码器
@@ -682,7 +682,6 @@ int main(int argc, char* argv[]) {
         codeWrds_Rx = DNAChannel.DNAChal(codeWrds_Tx, NoiseLvl, sequencingDepth, innerRedundancy);
 
         //======================LDPC Decoding and Calculation of FER========================//
-        //======================LDPC Decoding and Calculation of FER========================//
         int errorCount = 0; // 用于统计错误序列的数量
         for (int i = 0; i < sequenceNum; ++i) {
             cout << "LDPC decoding..." << i + 1 << "/" << sequenceNum << "\r";
@@ -694,13 +693,15 @@ int main(int argc, char* argv[]) {
         }
         //double FER = static_cast<double>(errorCount) / sequenceNum; // 计算帧错误率
         cout << "\nError Frame of this experiment: " << errorCount << endl;
-
+		totErrorFrame += errorCount; // 累加错误帧数
         // 计算仿真完成的时间
         Simu.completionTime(RepetitionRequired);
 
     }
+
     // 关闭，Python
     DNAChannel.CloseChannel();
+	int FER = totErrorFrame / (RepetitionRequired * sequenceNum); // 计算帧错误率
     // 保存文件，并使用throw命令保存当前的调试信息。
     // 以追加模式打开文件并写入数据行
     ofstream outfile(filePathData, ios::app);
@@ -713,7 +714,7 @@ int main(int argc, char* argv[]) {
         << sequencingDepth << ","
         << R_o << ","
         << R_i << ","
-        << firsErrorFrame << ","
+        << FER << ","
         << sequencingCost << "\n";
     outfile.close();
     cout << "\nSimulation data saved to Experiment.csv" << endl;
