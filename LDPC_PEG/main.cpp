@@ -17,7 +17,7 @@ using namespace std;
 using namespace Eigen;
 
 const string filePathData = "D:\\DeSP-main\\Data\\Cost_Optimization_result\\Fix_indexing_cost\\Data\\Simu";
-const string HmatrixPath = "D:\\DeSP-main\\Classic_PEG\\x64\\Debug\\Hmatrix_test.txt";
+//const string HmatrixPath = "D:\\DeSP-main\\Classic_PEG\\x64\\Debug\\Hmatrix_test.txt"
 const int sequenceNum = 320; //DNA序列长度/bit
 const int iter = 30; //Iteration for LDCP decode.
 //========================================Helper Function=======================================//
@@ -607,6 +607,7 @@ int main(int argc, char* argv[]) {
     const double NoiseLvl = stod(argv[2]); // Nosie level of the DNA channel
     const int sequencingDepth = stoi(argv[4]);
     const int innerRedundancy = stoi(argv[6]);
+    const string HmatrixPath = string(argv[8]);
 
     //======================Read the Parity Check Matrix======================//
     CheckMatrix CheckMtx;//定义check matrix的类
@@ -739,6 +740,7 @@ int main(int argc, char* argv[]) {
         << sequencingCost  
         << "\n";
     outfile.close();
-    cout << "\nSimulation data saved to " << filenameData << endl;
+    cout << "Simulation data saved to " << filenameData << endl;
+    cout << "==========================================\n" << endl;
     return 0;
 }
