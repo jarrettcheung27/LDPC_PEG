@@ -11,12 +11,13 @@
 #include <cstdlib>  // 使用 atoi() 转换字符串到整数
 #include <chrono>
 #include <ctime>
+#include <filesystem> // C++17 文件系统库
 
 using namespace std;
 using namespace Eigen;
 
-const string filePathData = "D:\\DeSP-main\\Data\\Cost_Optimization_result\\Fix_indexing_cost\\Data\\Simu\\Exp_Ri_MinimalCost.csv";
-const string HmatrixPath = "D:\\DeSP-main\\Inbox\\Classic_PEG\\x64\\Debug\\Hmatrix_test.txt";
+const string filePathData = "D:\\DeSP-main\\Data\\Cost_Optimization_result\\Fix_indexing_cost\\Data\\Simu";
+const string HmatrixPath = "D:\\DeSP-main\\Classic_PEG\\x64\\Debug\\Hmatrix_test.txt";
 const int sequenceNum = 320; //DNA序列长度/bit
 const int iter = 30; //Iteration for LDCP decode.
 //========================================Helper Function=======================================//
@@ -35,8 +36,6 @@ int HammingDistance(const vector<int> a, const vector<int> b) {
        }
    }
    return distance;
-}
-void CreatFile(string filename) {
 }
 
 class Duration {
@@ -548,7 +547,7 @@ public:
         // 调用 Python 函数 PyDNAChannel(list-of-lists, Noise_Lvl)
         pValue = PyObject_CallObject(pFunc, pArgs);
         Py_XDECREF(pArgs);
-        Py_XDECREF(pList);
+        //Py_XDECREF(pList);
         if (pValue != NULL) {
             // pValue 应该是一个 list-of-lists，对其进行转换
             if (PyList_Check(pValue)) {
@@ -571,9 +570,9 @@ public:
                 throw runtime_error("返回结果不是列表格式！");
             }
             Py_XDECREF(pValue);
-            Py_XDECREF(pInner);
-            Py_XDECREF(pNum);
-            Py_XDECREF(pRow);
+            //Py_XDECREF(pInner);
+            //Py_XDECREF(pNum);
+            //Py_XDECREF(pRow);
         }
         else {
             PyErr_Print();
@@ -619,25 +618,39 @@ int main(int argc, char* argv[]) {
     //CheckMtx.PrintH();//打印高斯消元后的H矩阵。
 
     // Print the coding configuration to the terminal.
-    double R_o = static_cast<double>(CheckMtx.N - CheckMtx.M) / CheckMtx.N;
+    double R_o = static_cast<double>(N - M) / N;
     double R_i = static_cast<double>(334) / (334 + innerRedundancy);
     double sequencingCost = static_cast<double>(sequencingDepth * 0.5) / (R_o * R_i);
     printf("Coding Config:\n");
-    printf("Outer Code: (%d, %d), %.2f\n", CheckMtx.N, CheckMtx.N - CheckMtx.M, R_o);
+    printf("Outer Code: (%d, %d), %.2f\n", N, N - M, R_o);
     printf("Inner Code: (%d, %d), %.2f\n", 334 + innerRedundancy, innerRedundancy, R_i);
-    printf("Sequencing Cost: %.2f bit/base", sequencingCost);
+    printf("Sequencing Cost: %.2f bases/bit", sequencingCost);
 
 
     // 创建并打开文件，覆盖旧文件并写入标题行
-    /*
-    ofstream file(filePathData);
-    if (!file.is_open()) {
-        cerr << "Failed to create Experiment.csv!" << endl;
-        return 1;
+     // Use ostringstream to build the filename string
+    std::ostringstream oss;
+    // Format the double to fixed-point notation with 2 decimal places
+    oss << "\\Cost_Optimization_Ro-" << fixed << std::setprecision(2) << R_o << "_d-" << to_string(sequencingDepth) << ".csv";
+
+    // Get the final filename as a string
+    string filenameData = oss.str(); 
+
+    // 检查文件是否存在，如果不存在则创建新文件并写入标题行
+    std::ifstream infile(filePathData + filenameData);
+    if (!infile.good()) {
+        // 如果文件不存在，创建并写入标题行
+        ofstream file(filePathData + filenameData);
+        if (!file.is_open()) {
+            cerr << "Failed to create Experiment.csv!" << endl;
+            return 1;
+        }
+        file << "PE,Sequencing Depth,Message Block Number, R_o,R_i,Error Frame Count,Reading Cost\n";
+        file.close(); // 关闭文件以释放资源
     }
-    file << "PE,Sequencing Depth,R_o,R_i,First Error Frame,Minimal Cost to Achieve 1e-6 FER\n";
-    file.close();  // 关闭文件以释放资源（后续以追加模式打开）
-    */
+    //else {
+    //    cout << "File already exists: " << filePathData + filename << endl;
+    //}
 
     //初始化随机消息发生器
     const int K = N - M;
@@ -651,79 +664,66 @@ int main(int argc, char* argv[]) {
     // 启动，初始化Python Channel
     Channel DNAChannel;
     DNAChannel.InitializeChannel();
-	int totErrorFrame = 0; // 统计总错误帧的数量
     int RepetitionRequired = ceil(1e6 / (CheckMtx.N - CheckMtx.M)); //Minmal Experimental Repetition Required to achieve 1e-6 FER.
-    vector<vector<double>> codeWrds_Rx(sequenceNum, vector<double>(N)); //Container for the channel output.
+    vector<vector<double>> codeWrds_Rx(sequenceNum, vector<double>(static_cast<int>(N))); // Container for the channel output.
     // 初始化LDPC译码器
     LDPC_Decoder Decoder(CheckMtx, 30, 0);
     vector<vector<int>> msgsRx(sequenceNum, vector<int>(K)); //Container for the decoded message.
 
     Duration Simu;
     Simu.simuStart();//记录实验开始的时间
-    //继续增加实验次数的条件：试验次数小于要求的次数；没有出现错误帧。
-    for (int exp = 0; exp < RepetitionRequired ; ++exp) {
-        Simu.expStart();//记录本次实验开始的时间
-        cout << "\n\n=========================== " << "Experiment " << exp + 1 << " / " << RepetitionRequired <<" ===========================" << endl;
-        //======================Generate Random Messages======================//
-        
-        for (int i = 0; i < sequenceNum; ++i) {
-            
-            msgsTx[i] = MsgGen.genMsg(K);
-        }
-        //MsgGen.PrintMsg();
+    //Simu.expStart();//记录本次实验开始的时间
+    //======================Generate Random Messages======================//
 
-        //======================LDPC Encoding======================//
-        for (int i = 0; i < sequenceNum; ++i) {
-            codeWrds_Tx[i] = Encoder.encode(msgsTx[i]);
-            cout << "LDPC Encoding"<<"("<<CheckMtx.N <<", "<< K << ")..." << i + 1 << " / " << sequenceNum << "\r";
-        }
-        cout << endl;
-        //Encoder.PrintResult();
-        //Encoder.CheckSyndrome();
+    for (int i = 0; i < sequenceNum; ++i) {
 
-
-        //======================Call DNA Channle in Python======================//
-        codeWrds_Rx = DNAChannel.DNAChal(codeWrds_Tx, NoiseLvl, sequencingDepth, innerRedundancy);
-        //======================LDPC Decoding and Calculation of FER========================//
-        for (int i = 0; i < sequenceNum; ++i) {
-            cout << "LDPC decoding..." << i + 1 << "/" << sequenceNum << "\r";
-            Decoder.to_LLR(codeWrds_Rx[i]);
-            msgsRx[i] = Decoder.Decode();
-        }
-        int errorCount = 0; // 用于统计错误帧的数量
-        // 遍历每一列
-        for (int col = 0; col < msgsTx[0].size(); ++col) {
-            bool hasError = false; // 标记当前列是否存在错误比特
-
-            // 遍历每一行，检查当前列是否有错误比特
-            for (int row = 0; row < sequenceNum; ++row) {
-                if (msgsTx[row][col] != msgsRx[row][col]) {
-                    hasError = true; // 如果发现错误比特，标记为 true
-                    break; // 退出当前列的检查
-                }
-            }
-
-            if (hasError) {
-                errorCount++; // 如果当前列有错误比特，错误帧计数器加 1
-            }
-        }
-        //double FER = static_cast<double>(errorCount) / sequenceNum; // 计算帧错误率
-        cout << "\nError Frame of this experiment: " << errorCount << endl;
-		totErrorFrame += errorCount; // 累加错误帧数
-        // 计算仿真完成的时间
-        Simu.completionTime(RepetitionRequired);
-
+        msgsTx[i] = MsgGen.genMsg(K);
     }
+    //MsgGen.PrintMsg();
+
+    //======================LDPC Encoding======================//
+    for (int i = 0; i < sequenceNum; ++i) {
+        codeWrds_Tx[i] = Encoder.encode(msgsTx[i]);
+        cout << "LDPC Encoding" << "(" << CheckMtx.N << ", " << K << ")..." << i + 1 << " / " << sequenceNum << "\r";
+    }
+    cout << endl;
+    //Encoder.PrintResult();
+    //Encoder.CheckSyndrome();
+
+
+    //======================Call DNA Channle in Python======================//
+    codeWrds_Rx = DNAChannel.DNAChal(codeWrds_Tx, NoiseLvl, sequencingDepth, innerRedundancy);
+    //======================LDPC Decoding and Calculation of FER========================//
+    for (int i = 0; i < sequenceNum; ++i) {
+        cout << "LDPC decoding..." << i + 1 << "/" << sequenceNum << "\r";
+        Decoder.to_LLR(codeWrds_Rx[i]);
+        msgsRx[i] = Decoder.Decode();
+    }
+    int errorCount = 0; // 用于统计错误帧的数量
+    // 遍历每一列
+    for (int col = 0; col < msgsTx[0].size(); ++col) {
+        bool hasError = false; // 标记当前列是否存在错误比特
+
+        // 遍历每一行，检查当前列是否有错误比特
+        for (int row = 0; row < sequenceNum; ++row) {
+            if (msgsTx[row][col] != msgsRx[row][col]) {
+                hasError = true; // 如果发现错误比特，标记为 true
+                break; // 退出当前列的检查
+            }
+        }
+        if (hasError) {
+            errorCount++; // 如果当前列有错误比特，错误帧计数器加 1
+        }
+    }
+    //double FER = static_cast<double>(errorCount) / sequenceNum; // 计算帧错误率
+    cout << "\nError Frame of this experiment: " << errorCount << endl;
 
     // 关闭，Python
 	DNAChannel.CloseChannel();
-	// 计算总的错误帧数
-	cout << "\nTotal Error Frame: " << totErrorFrame << endl;
-	// 计算 FER
-    double FER = static_cast<double>(totErrorFrame) / 1e6; // 计算帧错误率
+
     // 保存文件，并使用throw命令保存当前的调试信息。
     // 以追加模式打开文件并写入数据行
-    ofstream outfile(filePathData, ios::app);
+    ofstream outfile(filePathData+filenameData, ios::app);
     if (!outfile.is_open()) {
         cerr << "Failed to open Experiment.csv for appending!" << endl;
         system("pause");
@@ -731,14 +731,14 @@ int main(int argc, char* argv[]) {
     }
     // 写入数据行
     outfile << fixed << setprecision(2) << NoiseLvl << "," // 保留两位小数
-        << sequencingDepth << ","                     // 保留两位小数
-        << R_o << ","                                 // 保留两位小数
-        << R_i << ","                                 // 保留两位小数
-        << fixed << setprecision(6) << FER << ","     // 设置 FER 的精度为 1e-6
-        << fixed << setprecision(2) << sequencingCost // 保留两位小数
+        << sequencingDepth << ","                                  
+        << N - M << ","
+        << R_o << ","                                  
+        << R_i << ","                                
+		<< errorCount << ","                           
+        << sequencingCost  
         << "\n";
     outfile.close();
-    cout << "\nSimulation data saved to Experiment.csv" << endl;
-    system("pause");
+    cout << "\nSimulation data saved to " << filenameData << endl;
     return 0;
 }
