@@ -65,7 +65,12 @@ public:
         ctime_s(end_time_str, sizeof(end_time_str), &end_time_t);
         cout << "Estimated time for simulation completion: " << end_time_str << "Duariton: "<< total_time/3600 << "h";
     }
-
+    
+    void expDuration() {
+        exp_end = chrono::high_resolution_clock::now();//记录本次实验结束的时间
+        chrono::duration<double> elapsed = exp_end - exp_start; //本次实验的持续时间
+        cout << "Time spent in this experiment: " << elapsed.count() << "s" << endl;
+    }
     
     
 
@@ -662,9 +667,6 @@ int main(int argc, char* argv[]) {
     LDPC_Encoder Encoder(CheckMtx);
     vector<vector<int>> codeWrds_Tx(sequenceNum, vector<int>(N));
 
-    // 启动，初始化Python Channel
-    Channel DNAChannel;
-    DNAChannel.InitializeChannel();
     int RepetitionRequired = ceil(1e6 / (CheckMtx.N - CheckMtx.M)); //Minmal Experimental Repetition Required to achieve 1e-6 FER.
     vector<vector<double>> codeWrds_Rx(sequenceNum, vector<double>(static_cast<int>(N))); // Container for the channel output.
     // 初始化LDPC译码器
@@ -672,8 +674,8 @@ int main(int argc, char* argv[]) {
     vector<vector<int>> msgsRx(sequenceNum, vector<int>(K)); //Container for the decoded message.
 
     Duration Simu;
-    Simu.simuStart();//记录实验开始的时间
-    //Simu.expStart();//记录本次实验开始的时间
+    //Simu.simuStart();//记录实验开始的时间
+    Simu.expStart();//记录本次实验开始的时间
     //======================Generate Random Messages======================//
 
     for (int i = 0; i < sequenceNum; ++i) {
@@ -693,7 +695,12 @@ int main(int argc, char* argv[]) {
 
 
     //======================Call DNA Channle in Python======================//
+    // 启动，初始化Python Channel
+    Channel DNAChannel;
+    DNAChannel.InitializeChannel();
     codeWrds_Rx = DNAChannel.DNAChal(codeWrds_Tx, NoiseLvl, sequencingDepth, innerRedundancy);
+    // 关闭，Python信道
+    DNAChannel.CloseChannel();
     //======================LDPC Decoding and Calculation of FER========================//
     for (int i = 0; i < sequenceNum; ++i) {
         cout << "LDPC decoding..." << i + 1 << "/" << sequenceNum << "\r";
@@ -719,9 +726,6 @@ int main(int argc, char* argv[]) {
     //double FER = static_cast<double>(errorCount) / sequenceNum; // 计算帧错误率
     cout << "\nError Frame of this experiment: " << errorCount << endl;
 
-    // 关闭，Python
-	DNAChannel.CloseChannel();
-
     // 保存文件，并使用throw命令保存当前的调试信息。
     // 以追加模式打开文件并写入数据行
     ofstream outfile(filePathData+filenameData, ios::app);
@@ -741,6 +745,7 @@ int main(int argc, char* argv[]) {
         << "\n";
     outfile.close();
     cout << "Simulation data saved to " << filenameData << endl;
+    Simu.expDuration();
     cout << "==========================================\n" << endl;
     return 0;
 }
