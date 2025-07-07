@@ -74,7 +74,56 @@ public:
 
 };
 
+vector<vector<int>> ReadMsgs(const string& input_filepath,const int& K, const int& sequenceNum) { 
+    // 从文件中读取消息序列，返回一个二维向量 msgsTx，其中每行代表一个消息序列。
+    // Args:        
+    //   input_filepath: 输入文件路径，包含消息序列。
+    //   K: 每个消息序列的长度。
+    vector<vector<int>> msgsTx(sequenceNum, vector<int>(K)); // 初始化 msgsTx 容器
+    ifstream msgFile(input_filepath);
+    if (!msgFile.is_open()) {
+        cerr << "Failed to open input file: " << input_filepath << endl;
+        return vector<vector<int>>();
+    }
+    string line;
+    int msgIdx = 0;
+    while (getline(msgFile, line) && msgIdx < sequenceNum) {
+        vector<int> bits;
+        for (char c : line) {
+            if (c == '0' || c == '1') {
+                bits.push_back(c - '0');
+            }
+        }
+        if (bits.size() != K) {
+            cerr << "Error: Line " << msgIdx + 1 << " does not contain exactly " << K << " bits." << endl;
+            return vector<vector<int>>();
+        }
+        msgsTx[msgIdx] = bits;
+        msgIdx++;
+    }
+    if (msgIdx < sequenceNum) {
+        cerr << "Error: Not enough message sequences in input file." << endl;
+        return vector<vector<int>>();
+    }
+    msgFile.close();
+    return msgsTx;
+}
 
+void WriteEncodedMessages(const vector<vector<int>>& codeWrds_Tx, const string& output_filepath) {
+        ofstream outFile(output_filepath);
+        if (!outFile.is_open()) {
+            cerr << "Error: Could not open output file: " << output_filepath << endl;
+            return;
+        }
+        for (const auto& codeword : codeWrds_Tx) {
+            for (int bit : codeword) {
+                outFile << bit;
+            }
+            outFile << '\n';
+        }
+        outFile.close();
+        cout << "Encoded messages written to " << output_filepath << endl;
+    }
 //==========================================ENCODER=========================================//
 // 定义稀疏校验矩阵H的类
 class CheckMatrix {
@@ -472,79 +521,59 @@ int main(int argc, char* argv[]) {
     CheckMtx.Gaussian_Elimination();//对原始矩阵进行高斯消元。
     //CheckMtx.PrintH();//打印高斯消元后的H矩阵。
 
-    //======================从 input_filepath 读取待编码的信息序列======================//
-    const int K = N - M;
-    vector<vector<int>> msgsTx(sequenceNum, vector<int>(K)); // Container for the generated message
-
-    ifstream msgFile(input_filepath);
-    if (!msgFile.is_open()) {
-        cerr << "Failed to open input file: " << input_filepath << endl;
-        return 1;
-    }
-    string line;
-    int msgIdx = 0;
-    while (getline(msgFile, line) && msgIdx < sequenceNum) {
-        istringstream iss(line);
-        for (int k = 0; k < K; ++k) {
-            int bit;
-            if (!(iss >> bit)) {
-                cerr << "Error: Not enough bits in line " << msgIdx + 1 << endl;
-                return 1;
-            }
-            msgsTx[msgIdx][k] = bit;
+    if (mode == "encode")
+    {
+        //======================从 input_filepath 读取待编码的信息序列======================//
+        const int K = N - M;
+        vector<vector<int>> msgsTx(sequenceNum, vector<int>(K)); // Container for the generated message
+        msgsTx = ReadMsgs(input_filepath, K, sequenceNum); // 从文件中读取消息序列
+        if (msgsTx.empty()) {
+            cerr << "Error: No messages read from input file." << endl;
+            return 1;
         }
+
+        // 初始化LDPC编码器
+        LDPC_Encoder Encoder(CheckMtx);
+        vector<vector<int>> codeWrds_Tx(sequenceNum, vector<int>(N));
+
+        //======================LDPC Encoding======================//
+        for (int i = 0; i < sequenceNum; ++i) {
+            codeWrds_Tx[i] = Encoder.encode(msgsTx[i]);
+            cout << "LDPC Encoding" << "(" << CheckMtx.N << ", " << K << ")..." << i + 1 << " / " << sequenceNum << "\r";
+        }
+        cout << endl;
+
+        //======================输出编码后的结果到 output_filepath======================//
+        WriteEncodedMessages(codeWrds_Tx, output_filepath);
+    }
+    else {
+        //======================LDPC Decoding ========================//
+        /*
+        msgsTx[msgIdx] = bits;
         msgIdx++;
-    }
-    if (msgIdx < sequenceNum) {
-        cerr << "Error: Not enough message sequences in input file." << endl;
-        return 1;
-    }
-    msgFile.close();
+        for (int i = 0; i < sequenceNum; ++i) {
+            cout << "LDPC decoding..." << i + 1 << "/" << sequenceNum << "\r";
+            Decoder.to_LLR(codeWrds_Rx[i]);
+            msgsRx[i] = Decoder.Decode();
+        }
+        int errorCount = 0; // 用于统计错误帧的数量
+        // 遍历每一列
+        for (int col = 0; col < msgsTx[0].size(); ++col) {
+            bool hasError = false; // 标记当前列是否存在错误比特
 
-    // 初始化LDPC编码器
-    LDPC_Encoder Encoder(CheckMtx);
-    vector<vector<int>> codeWrds_Tx(sequenceNum, vector<int>(N));
-
-    int RepetitionRequired = ceil(1e6 / (CheckMtx.N - CheckMtx.M)); //Minmal Experimental Repetition Required to achieve 1e-6 FER.
-    vector<vector<double>> codeWrds_Rx(sequenceNum, vector<double>(static_cast<int>(N))); // Container for the channel output.
-    // 初始化LDPC译码器
-    LDPC_Decoder Decoder(CheckMtx, 30, 0);
-    vector<vector<int>> msgsRx(sequenceNum, vector<int>(K)); //Container for the decoded message.
-
-    Duration Simu;
-    //Simu.simuStart();//记录实验开始的时间
-    Simu.expStart();//记录本次实验开始的时间
-
-    //======================LDPC Encoding======================//
-    for (int i = 0; i < sequenceNum; ++i) {
-        codeWrds_Tx[i] = Encoder.encode(msgsTx[i]);
-        cout << "LDPC Encoding" << "(" << CheckMtx.N << ", " << K << ")..." << i + 1 << " / " << sequenceNum << "\r";
-    }
-    cout << endl;
-
-    //======================LDPC Decoding and Calculation of FER========================//
-    /*
-    for (int i = 0; i < sequenceNum; ++i) {
-        cout << "LDPC decoding..." << i + 1 << "/" << sequenceNum << "\r";
-        Decoder.to_LLR(codeWrds_Rx[i]);
-        msgsRx[i] = Decoder.Decode();
-    }
-    int errorCount = 0; // 用于统计错误帧的数量
-    // 遍历每一列
-    for (int col = 0; col < msgsTx[0].size(); ++col) {
-        bool hasError = false; // 标记当前列是否存在错误比特
-
-        // 遍历每一行，检查当前列是否有错误比特
-        for (int row = 0; row < sequenceNum; ++row) {
-            if (msgsTx[row][col] != msgsRx[row][col]) {
-                hasError = true; // 如果发现错误比特，标记为 true
-                break; // 退出当前列的检查
+            // 遍历每一行，检查当前列是否有错误比特
+            for (int row = 0; row < sequenceNum; ++row) {
+                if (msgsTx[row][col] != msgsRx[row][col]) {
+                    hasError = true; // 如果发现错误比特，标记为 true
+                    break; // 退出当前列的检查
+                }
+            }
+            if (hasError) {
+                errorCount++; // 如果当前列有错误比特，错误帧计数器加 1
             }
         }
-        if (hasError) {
-            errorCount++; // 如果当前列有错误比特，错误帧计数器加 1
-        }
+        */
     }
-    */
+    
     return 0;
 }
