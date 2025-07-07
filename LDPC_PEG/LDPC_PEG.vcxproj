@@ -71,8 +71,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <TargetName>$(ProjectName)-v.16</TargetName>
-    <OutDir>D:\DeSP-main\Run_Simmulation</OutDir>
+    <TargetName>$(ProjectName)-v2.0</TargetName>
+    <OutDir>D:\DeSP-main\App_Simulation_Platform</OutDir>
     <IncludePath>D:\Downloads\opencv\build\include;$(IncludePath)</IncludePath>
     <LibraryPath>D:\Downloads\opencv\build\x64\vc15\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>

@@ -74,8 +74,6 @@ public:
 
 };
 
-private:
-    vector<int> Msg;
 
 //==========================================ENCODER=========================================//
 // 定义稀疏校验矩阵H的类
@@ -456,14 +454,14 @@ public:
 
 int main(int argc, char* argv[]) {
     // Reading parameter form command line.
-    if (argc < 7) {  // 确保至少有7个参数（第一个是程序名）
-        std::cerr << "Usage: " << argv[0] << "Should have 3 parameters: Noise Level, Sequencing Depth and InnerRedundancy" << std::endl;
-        return 1;  // 返回错误码
+    if (argc < 5) {
+        std::cerr << "Usage: " << argv[0] << " <mode> <input_filepath> <output_filepath> <HmatrixPath>" << std::endl;
+        return 1;
     }
-    const double NoiseLvl = stod(argv[2]); // Nosie level of the DNA channel
-    const int sequencingDepth = stoi(argv[4]);
-    const int innerRedundancy = stoi(argv[6]);
-    const string HmatrixPath = string(argv[8]);
+    string mode = argv[1];
+    string input_filepath = argv[2];
+    string output_filepath = argv[3];
+    string HmatrixPath = argv[4];
 
     //======================Read the Parity Check Matrix======================//
     CheckMatrix CheckMtx;//定义check matrix的类
@@ -474,47 +472,36 @@ int main(int argc, char* argv[]) {
     CheckMtx.Gaussian_Elimination();//对原始矩阵进行高斯消元。
     //CheckMtx.PrintH();//打印高斯消元后的H矩阵。
 
-    // Print the coding configuration to the terminal.
-    double R_o = static_cast<double>(N - M) / N;
-    double R_i = static_cast<double>(334) / (334 + innerRedundancy);
-    double sequencingCost = static_cast<double>(sequencingDepth * 0.5) / (R_o * R_i);
-    printf("Coding Config:\n");
-    printf("Outer Code: (%d, %d), %.2f\n", N, N - M, R_o);
-    printf("Inner Code: (%d, %d), %.2f\n", 334 + innerRedundancy, innerRedundancy, R_i);
-    printf("Sequencing Cost: %.2f bases/bit\n", sequencingCost);
-
-
-    // 创建并打开文件，覆盖旧文件并写入标题行
-     // Use ostringstream to build the filename string
-    std::ostringstream oss;
-    // Format the double to fixed-point notation with 2 decimal places
-    oss << "\\Cost_Optimization_Ro-" << fixed << std::setprecision(2) << R_o << "_d-" << to_string(sequencingDepth) << ".csv";
-
-    // Get the final filename as a string
-    string filenameData = oss.str();
-
-    // 检查文件是否存在，如果不存在则创建新文件并写入标题行
-    std::ifstream infile(filePathData + filenameData);
-    if (!infile.good()) {
-        // 如果文件不存在，创建并写入标题行
-        ofstream file(filePathData + filenameData);
-        if (!file.is_open()) {
-            cerr << "Failed to create Experiment.csv!" << endl;
-            return 1;
-        }
-        file << "PE,Sequencing Depth,Message Block Number, R_o,R_i,Error Frame Count,Reading Cost\n";
-        file.close(); // 关闭文件以释放资源
-    }
-    //else {
-    //    cout << "File already exists: " << filePathData + filename << endl;
-    //}
-
-    //初始化随机消息发生器
+    //======================从 input_filepath 读取待编码的信息序列======================//
     const int K = N - M;
-    MessageGenerator MsgGen;
-    vector<vector<int>> msgsTx(sequenceNum, vector<int>(K)); //Contianer for the generated message
+    vector<vector<int>> msgsTx(sequenceNum, vector<int>(K)); // Container for the generated message
 
-    //初始化LDPC编码器
+    ifstream msgFile(input_filepath);
+    if (!msgFile.is_open()) {
+        cerr << "Failed to open input file: " << input_filepath << endl;
+        return 1;
+    }
+    string line;
+    int msgIdx = 0;
+    while (getline(msgFile, line) && msgIdx < sequenceNum) {
+        istringstream iss(line);
+        for (int k = 0; k < K; ++k) {
+            int bit;
+            if (!(iss >> bit)) {
+                cerr << "Error: Not enough bits in line " << msgIdx + 1 << endl;
+                return 1;
+            }
+            msgsTx[msgIdx][k] = bit;
+        }
+        msgIdx++;
+    }
+    if (msgIdx < sequenceNum) {
+        cerr << "Error: Not enough message sequences in input file." << endl;
+        return 1;
+    }
+    msgFile.close();
+
+    // 初始化LDPC编码器
     LDPC_Encoder Encoder(CheckMtx);
     vector<vector<int>> codeWrds_Tx(sequenceNum, vector<int>(N));
 
@@ -527,13 +514,6 @@ int main(int argc, char* argv[]) {
     Duration Simu;
     //Simu.simuStart();//记录实验开始的时间
     Simu.expStart();//记录本次实验开始的时间
-    //======================Generate Random Messages======================//
-
-    for (int i = 0; i < sequenceNum; ++i) {
-
-        msgsTx[i] = MsgGen.genMsg(K);
-    }
-    //MsgGen.PrintMsg();
 
     //======================LDPC Encoding======================//
     for (int i = 0; i < sequenceNum; ++i) {
@@ -541,18 +521,9 @@ int main(int argc, char* argv[]) {
         cout << "LDPC Encoding" << "(" << CheckMtx.N << ", " << K << ")..." << i + 1 << " / " << sequenceNum << "\r";
     }
     cout << endl;
-    //Encoder.PrintResult();
-    //Encoder.CheckSyndrome();
 
-
-    //======================Call DNA Channle in Python======================//
-    // 启动，初始化Python Channel
-    Channel DNAChannel;
-    DNAChannel.InitializeChannel();
-    codeWrds_Rx = DNAChannel.DNAChal(codeWrds_Tx, NoiseLvl, sequencingDepth, innerRedundancy);
-    // 关闭，Python信道
-    DNAChannel.CloseChannel();
     //======================LDPC Decoding and Calculation of FER========================//
+    /*
     for (int i = 0; i < sequenceNum; ++i) {
         cout << "LDPC decoding..." << i + 1 << "/" << sequenceNum << "\r";
         Decoder.to_LLR(codeWrds_Rx[i]);
@@ -574,29 +545,6 @@ int main(int argc, char* argv[]) {
             errorCount++; // 如果当前列有错误比特，错误帧计数器加 1
         }
     }
-    //double FER = static_cast<double>(errorCount) / sequenceNum; // 计算帧错误率
-    cout << "\nError Frame of this experiment: " << errorCount << endl;
-
-    // 保存文件，并使用throw命令保存当前的调试信息。
-    // 以追加模式打开文件并写入数据行
-    ofstream outfile(filePathData + filenameData, ios::app);
-    if (!outfile.is_open()) {
-        cerr << "Failed to open Experiment.csv for appending!" << endl;
-        system("pause");
-        return 1;
-    }
-    // 写入数据行
-    outfile << fixed << setprecision(2) << NoiseLvl << "," // 保留两位小数
-        << sequencingDepth << ","
-        << N - M << ","
-        << R_o << ","
-        << R_i << ","
-        << errorCount << ","
-        << sequencingCost
-        << "\n";
-    outfile.close();
-    cout << "Simulation data saved to " << filenameData << endl;
-    Simu.expDuration();
-    cout << "==========================================\n" << endl;
+    */
     return 0;
 }
