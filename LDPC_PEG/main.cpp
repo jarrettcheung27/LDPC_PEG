@@ -12,7 +12,9 @@
 #include <chrono>
 #include <ctime>
 #include <filesystem> // C++17 文件系统库
+#include <opencv2/opencv.hpp>
 
+using namespace cv;
 using namespace std;
 using namespace Eigen;
 
@@ -107,6 +109,66 @@ public:
     }
 };
 
+//==================================Image and Binary converter==================================//
+// This object converts an image to a binary vector or a binary vector to image.
+class ImageToBinary {
+private:
+    vector<vector<int>>Msgs;
+
+
+public:
+    ImageToBinary() {
+        cout << "Converting image to binary stream..." << endl;
+    }
+    vector<vector<int>> Img2Bin(const int MsgLength, const string Image_filepath) {
+        vector<vector<int>> Msgs;
+        // 读取真彩图像（BGR）
+        Mat img = imread(Image_filepath, IMREAD_COLOR);
+        if (img.empty()) {
+            cerr << "Error: Cannot open image file: " << Image_filepath << endl;
+            return Msgs;
+        }
+        // 展平所有像素的所有通道
+        vector<int> bits;
+        for (int row = 0; row < img.rows; ++row) {
+            for (int col = 0; col < img.cols; ++col) {
+                Vec3b pixel = img.at<Vec3b>(row, col); // BGR
+                for (int c = 0; c < 3; ++c) {
+                    uchar val = pixel[c];
+                    for (int i = 7; i >= 0; --i) {
+                        bits.push_back((val >> i) & 1);
+                    }
+                }
+            }
+        }
+        // 分组，每组MsgLength，不足补0
+        size_t totalBits = bits.size();
+        size_t numBlocks = (totalBits + MsgLength - 1) / MsgLength;
+        Msgs.resize(numBlocks);
+        for (size_t i = 0; i < numBlocks; ++i) {
+            size_t start = i * MsgLength;
+            size_t end = min(start + MsgLength, totalBits);
+            Msgs[i].assign(bits.begin() + start, bits.begin() + end);
+            if (Msgs[i].size() < MsgLength) {
+                Msgs[i].resize(MsgLength, 0);
+            }
+        }
+        return Msgs;
+    }
+
+
+    void PrintMsg() {
+        cout << "Msgs: " << endl;
+		for (vector<int> Msg : Msgs)  // 遍历每个消息向量
+        {
+            for (int bit : Msg) {
+                cout << bit;
+            }
+        }
+
+        cout << endl;
+    }
+};
 //==========================================ENCODER=========================================//
 // 定义稀疏校验矩阵H的类
 class CheckMatrix {
@@ -630,7 +692,7 @@ int main(int argc, char* argv[]) {
     printf("Coding Config:\n");
     printf("Outer Code: (%d, %d), %.2f\n", N, N - M, R_o);
     printf("Inner Code: (%d, %d), %.2f\n", 334 + innerRedundancy, innerRedundancy, R_i);
-    printf("Sequencing Cost: %.2f bases/bit", sequencingCost);
+    printf("Sequencing Cost: %.2f bases/bit\n", sequencingCost);
 
 
     // 创建并打开文件，覆盖旧文件并写入标题行
