@@ -74,8 +74,6 @@ public:
         cout << "Time spent in this experiment: " << elapsed.count() << "s" << endl;
     }
     
-    
-
 };
 
 //==================================Generate Random Message==================================//
