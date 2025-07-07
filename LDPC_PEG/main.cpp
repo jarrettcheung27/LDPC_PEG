@@ -7,18 +7,18 @@
 #include <algorithm>
 #include <Eigen/Sparse>
 #include <python.h>
-#include <iomanip>  // ÓÃÓÚ¿ØÖÆÊä³ö¸ñÊ½
-#include <cstdlib>  // Ê¹ÓÃ atoi() ×ª»»×Ö·û´®µ½ÕûÊı
+#include <iomanip>  // ç”¨äºæ§åˆ¶è¾“å‡ºæ ¼å¼
+#include <cstdlib>  // ä½¿ç”¨ atoi() è½¬æ¢å­—ç¬¦ä¸²åˆ°æ•´æ•°
 #include <chrono>
 #include <ctime>
-#include <filesystem> // C++17 ÎÄ¼şÏµÍ³¿â
+#include <filesystem> // C++17 æ–‡ä»¶ç³»ç»Ÿåº“
 
 using namespace std;
 using namespace Eigen;
 
 const string filePathData = "D:\\DeSP-main\\Data\\Cost_Optimization_result\\Fix_indexing_cost\\Data\\Simu";
 //const string HmatrixPath = "D:\\DeSP-main\\Classic_PEG\\x64\\Debug\\Hmatrix_test.txt"
-const int sequenceNum = 320; //DNAĞòÁĞ³¤¶È/bit
+const int sequenceNum = 320; //DNAåºåˆ—é•¿åº¦/bit
 const int iter = 30; //Iteration for LDCP decode.
 //========================================Helper Function=======================================//
 int mod2Add(int a, int b) {
@@ -26,16 +26,16 @@ int mod2Add(int a, int b) {
 }
 
 int HammingDistance(const vector<int> a, const vector<int> b) {
-   if (a.size() != b.size()) {
-       throw invalid_argument("Vectors must be of the same length.");
-   }
-   int distance = 0;
-   for (size_t i = 0; i < a.size(); ++i) {
-       if (a[i] != b[i]) {
-           distance++;
-       }
-   }
-   return distance;
+    if (a.size() != b.size()) {
+        throw invalid_argument("Vectors must be of the same length.");
+    }
+    int distance = 0;
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (a[i] != b[i]) {
+            distance++;
+        }
+    }
+    return distance;
 }
 
 class Duration {
@@ -43,76 +43,48 @@ public:
     chrono::system_clock::time_point simu_start_time; //start time of the simulation.
     chrono::steady_clock::time_point exp_start;//start time of the experiment.
     chrono::steady_clock::time_point exp_end; //end time if the experiment.
-    
+
     void simuStart() {
-        simu_start_time = chrono::system_clock::now(); //¼ÇÂ¼·ÂÕæ¿ªÊ¼µÄÊ±¼ä
+        simu_start_time = chrono::system_clock::now(); //è®°å½•ä»¿çœŸå¼€å§‹çš„æ—¶é—´
     }
     void expStart() {
-        exp_start = chrono::high_resolution_clock::now();//¼ÇÂ¼±¾´ÎÊµÑé¿ªÊ¼µÄÊ±¼ä
+        exp_start = chrono::high_resolution_clock::now();//è®°å½•æœ¬æ¬¡å®éªŒå¼€å§‹çš„æ—¶é—´
     }
 
     void completionTime(int RepetitionRequired) {
         /* Args:
-        *   RepetitionRequired: ±¾´Î·ÂÕæĞèÒªÖØ¸´ÊµÑéµÄ´ÎÊı
+        *   RepetitionRequired: æœ¬æ¬¡ä»¿çœŸéœ€è¦é‡å¤å®éªŒçš„æ¬¡æ•°
         */
-        exp_end = chrono::high_resolution_clock::now();//¼ÇÂ¼±¾´ÎÊµÑé½áÊøµÄÊ±¼ä
-        chrono::duration<double> elapsed = exp_end - exp_start; //±¾´ÎÊµÑéµÄ³ÖĞøÊ±¼ä
+        exp_end = chrono::high_resolution_clock::now();//è®°å½•æœ¬æ¬¡å®éªŒç»“æŸçš„æ—¶é—´
+        chrono::duration<double> elapsed = exp_end - exp_start; //æœ¬æ¬¡å®éªŒçš„æŒç»­æ—¶é—´
         cout << "Time spent in this experiment: " << elapsed.count() << "s" << endl;
-        double total_time = elapsed.count() * RepetitionRequired; //¼ÆËã×ÜºÄÊ±
-        auto estimated_end_time = simu_start_time + chrono::seconds(static_cast<long>(total_time)); //¼ÆËãÔ¤¹ÀµÄÍê³ÉÊ±¼ä
-        time_t end_time_t = chrono::system_clock::to_time_t(estimated_end_time); //×ª»»³ÉÄêÔÂÈÕÊ±·ÖÃëµÄĞÎÊ½
+        double total_time = elapsed.count() * RepetitionRequired; //è®¡ç®—æ€»è€—æ—¶
+        auto estimated_end_time = simu_start_time + chrono::seconds(static_cast<long>(total_time)); //è®¡ç®—é¢„ä¼°çš„å®Œæˆæ—¶é—´
+        time_t end_time_t = chrono::system_clock::to_time_t(estimated_end_time); //è½¬æ¢æˆå¹´æœˆæ—¥æ—¶åˆ†ç§’çš„å½¢å¼
         char end_time_str[26];
         ctime_s(end_time_str, sizeof(end_time_str), &end_time_t);
-        cout << "Estimated time for simulation completion: " << end_time_str << "Duariton: "<< total_time/3600 << "h";
+        cout << "Estimated time for simulation completion: " << end_time_str << "Duariton: " << total_time / 3600 << "h";
     }
-    
+
     void expDuration() {
-        exp_end = chrono::high_resolution_clock::now();//¼ÇÂ¼±¾´ÎÊµÑé½áÊøµÄÊ±¼ä
-        chrono::duration<double> elapsed = exp_end - exp_start; //±¾´ÎÊµÑéµÄ³ÖĞøÊ±¼ä
+        exp_end = chrono::high_resolution_clock::now();//è®°å½•æœ¬æ¬¡å®éªŒç»“æŸçš„æ—¶é—´
+        chrono::duration<double> elapsed = exp_end - exp_start; //æœ¬æ¬¡å®éªŒçš„æŒç»­æ—¶é—´
         cout << "Time spent in this experiment: " << elapsed.count() << "s" << endl;
     }
-    
+
 };
 
-//==================================Generate Random Message==================================//
-class MessageGenerator {
 private:
     vector<int> Msg;
 
-
-public:
-    MessageGenerator() {
-        cout << "Generating message..." << endl;
-    }
-    vector<int> genMsg(const int MsgLength) {
-        /*Generate random bit stream of length n*/
-        srand(static_cast<unsigned int>(time(0))); // Set the seed of random number generator according to time.
-        Msg.clear();
-        Msg.reserve(MsgLength);
-        for (int i = 0; i < MsgLength; ++i) {
-            int bit = rand() % 2;
-            Msg.push_back(bit);
-        }
-        return move(Msg);
-    }
-
-    void PrintMsg() {
-        cout << "Msg: " << endl;
-        for (int bit : Msg) {
-            cout << bit;
-        }
-        cout << endl;
-    }
-};
-
 //==========================================ENCODER=========================================//
-// ¶¨ÒåÏ¡ÊèĞ£Ñé¾ØÕóHµÄÀà
+// å®šä¹‰ç¨€ç–æ ¡éªŒçŸ©é˜µHçš„ç±»
 class CheckMatrix {
 public:
     int M;       // The number of check nodes M
     int N;       // Code length N
     vector<vector<int>> H;// H matrix read from the file (Generate by PEG Algorithm.)
-    vector<int> Permutation;        // ¼ÇÂ¼ÁĞ½»»»ĞÅÏ¢£º±ä»»ºóHÖĞµÚiÁĞÔÚÔ­H¾ØÕóÖĞµÄË÷Òı
+    vector<int> Permutation;        // è®°å½•åˆ—äº¤æ¢ä¿¡æ¯ï¼šå˜æ¢åHä¸­ç¬¬iåˆ—åœ¨åŸHçŸ©é˜µä¸­çš„ç´¢å¼•
     string filename;
 
     // Read the H matrix from file.
@@ -145,22 +117,22 @@ public:
             H.push_back(row); //H matrix for decoding.
         }
     }
-    // ¸ßË¹ÏûÔªº¯Êı£¨ÔÚGF(2)ÉÏ£©£¬½«H¾ØÕóÏûÔªÎªÏµÍ³»¯ĞÎÊ½ [P I]
-    // Í¬Ê±¼ÇÂ¼Ã¿´ÎÁĞ½»»»ĞÅÏ¢µ½ Permutation ÖĞ£¬±ãÓÚÒëÂëÊ±»Ö¸´Ô­Ê¼ĞÅÏ¢Ë³Ğò¡£
+    // é«˜æ–¯æ¶ˆå…ƒå‡½æ•°ï¼ˆåœ¨GF(2)ä¸Šï¼‰ï¼Œå°†HçŸ©é˜µæ¶ˆå…ƒä¸ºç³»ç»ŸåŒ–å½¢å¼ [P I]
+    // åŒæ—¶è®°å½•æ¯æ¬¡åˆ—äº¤æ¢ä¿¡æ¯åˆ° Permutation ä¸­ï¼Œä¾¿äºè¯‘ç æ—¶æ¢å¤åŸå§‹ä¿¡æ¯é¡ºåºã€‚
     void Gaussian_Elimination() {
         cout << "Processing Gaussian_Elimination" << endl;
-        // ³õÊ¼»¯ Permutation ÎªÉí·İÅÅÁĞ£¬¼´ Permutation[i] = i
+        // åˆå§‹åŒ– Permutation ä¸ºèº«ä»½æ’åˆ—ï¼Œå³ Permutation[i] = i
         Permutation.resize(N);
         for (int i = 0; i < N; ++i) {
             Permutation[i] = i;
         }
 
-        // ¶ÔÓÚÃ¿Ò»ĞĞ r£¬Ä¿±êÊÇ½«ÓÒ²à M ÁĞ¹¹ÔìÎªµ¥Î»¾ØÕó
-        // ¼´¶ÔĞĞ r£¬Ä¿±êÁĞ target = N - M + r
+        // å¯¹äºæ¯ä¸€è¡Œ rï¼Œç›®æ ‡æ˜¯å°†å³ä¾§ M åˆ—æ„é€ ä¸ºå•ä½çŸ©é˜µ
+        // å³å¯¹è¡Œ rï¼Œç›®æ ‡åˆ— target = N - M + r
         for (int r = 0; r < M; ++r) {
             int target = N - M + r;
             int pivot_col = -1;
-            // ÔÚµÚ r ĞĞÖĞÑ°ÕÒÒ»¸ö1×÷ÎªÖ÷Ôª£¨¿É´ÓÕû¸öĞĞÖĞÑ°ÕÒ£©
+            // åœ¨ç¬¬ r è¡Œä¸­å¯»æ‰¾ä¸€ä¸ª1ä½œä¸ºä¸»å…ƒï¼ˆå¯ä»æ•´ä¸ªè¡Œä¸­å¯»æ‰¾ï¼‰
             for (int j = 0; j < N; j++) {
                 if (H[r][j] == 1) {
                     pivot_col = j;
@@ -168,19 +140,19 @@ public:
                 }
             }
             if (pivot_col == -1) {
-                // µ±Ç°ĞĞÎŞ1£¬¾ØÕóÖÈ¿ÉÄÜ²»×ã£¬ÎŞ·¨×ªÎªÍêÈ«ÏµÍ³»¯ĞÎÊ½
+                // å½“å‰è¡Œæ— 1ï¼ŒçŸ©é˜µç§©å¯èƒ½ä¸è¶³ï¼Œæ— æ³•è½¬ä¸ºå®Œå…¨ç³»ç»ŸåŒ–å½¢å¼
                 cerr << "Warning: Row " << r << " has no pivot. The matrix may be rank deficient." << endl;
                 continue;
             }
-            // Èç¹ûÕÒµ½µÄÖ÷Ôª²»ÔÚÄ¿±êÎ»ÖÃ£¬Ôò½»»»ÁĞ£¬½«Ö÷ÔªÒÆµ½ target ÁĞ
+            // å¦‚æœæ‰¾åˆ°çš„ä¸»å…ƒä¸åœ¨ç›®æ ‡ä½ç½®ï¼Œåˆ™äº¤æ¢åˆ—ï¼Œå°†ä¸»å…ƒç§»åˆ° target åˆ—
             if (pivot_col != target) {
                 for (int i = 0; i < M; i++) {
                     swap(H[i][pivot_col], H[i][target]);
                 }
-                // Í¬Ê±¸üĞÂ Permutation ÏòÁ¿ÖĞµÄ½»»»ĞÅÏ¢
+                // åŒæ—¶æ›´æ–° Permutation å‘é‡ä¸­çš„äº¤æ¢ä¿¡æ¯
                 swap(Permutation[pivot_col], Permutation[target]);
             }
-            // ÏÖÖ÷ÔªÎ»ÓÚ H[r][target]£¬½«¸ÃÁĞÆäËûĞĞÉÏµÄ1ÏûÈ¥
+            // ç°ä¸»å…ƒä½äº H[r][target]ï¼Œå°†è¯¥åˆ—å…¶ä»–è¡Œä¸Šçš„1æ¶ˆå»
             for (int i = 0; i < M; i++) {
                 if (i != r && H[i][target] == 1) {
                     for (int j = target; j < N; j++) {
@@ -190,13 +162,13 @@ public:
             }
         }
     }
-    // ½öÊ¹ÓÃĞĞ±ä»»½øĞĞ¸ßË¹ÏûÔª£¬½« H ×ª»»ÎªÏµÍ³»¯ĞÎÊ½ [P I]
+    // ä»…ä½¿ç”¨è¡Œå˜æ¢è¿›è¡Œé«˜æ–¯æ¶ˆå…ƒï¼Œå°† H è½¬æ¢ä¸ºç³»ç»ŸåŒ–å½¢å¼ [P I]
     void Gaussian_Elimination_RowTransform() {
         cout << "Processing Gaussian_Elimination" << endl;
         for (int r = 0; r < M; ++r) {
             int pivot_row = -1;
 
-            // ÔÚµ±Ç°ÁĞÕÒµ½Ö÷ÔªĞĞ
+            // åœ¨å½“å‰åˆ—æ‰¾åˆ°ä¸»å…ƒè¡Œ
             for (int i = r; i < M; ++i) {
                 if (H[i][N - M + r] == 1) {
                     pivot_row = i;
@@ -208,16 +180,16 @@ public:
                 continue;
             }
 
-            // ½»»»µ±Ç°ĞĞºÍÖ÷ÔªĞĞ
+            // äº¤æ¢å½“å‰è¡Œå’Œä¸»å…ƒè¡Œ
             if (pivot_row != r) {
                 swap(H[r], H[pivot_row]);
             }
 
-            // ÏûÈ¥ÆäËûĞĞµÄ¸ÃÁĞ£¬Ê¹Æä±ä³Éµ¥Î»¾ØÕó
+            // æ¶ˆå»å…¶ä»–è¡Œçš„è¯¥åˆ—ï¼Œä½¿å…¶å˜æˆå•ä½çŸ©é˜µ
             for (int i = 0; i < M; ++i) {
                 if (i != r && H[i][N - M + r] == 1) {
                     for (int j = 0; j < N; ++j) {
-                        H[i][j] ^= H[r][j]; // GF(2) ¼Ó·¨
+                        H[i][j] ^= H[r][j]; // GF(2) åŠ æ³•
                     }
                 }
             }
@@ -225,7 +197,7 @@ public:
     }
     // Print H matrix for testing
     void PrintH() {
-        // Êä³öĞ£Ñé¾ØÕó
+        // è¾“å‡ºæ ¡éªŒçŸ©é˜µ
         cout << "H = " << endl;
         cout << "[" << endl;
         for (int i = 0; i < M; ++i) {
@@ -239,10 +211,10 @@ public:
 
 };
 
-class LDPC_Encoder{
+class LDPC_Encoder {
 private:
-    // ÏµÍ³»¯ H ¾ØÕó [P I]£ºH Îª checkNum ĞĞ¡¢codeLength ÁĞ£¬ÆäÖĞ
-    // ×ó²à Inflength ÁĞÎª P ¾ØÕó£¬ÓÒ²à checkNum ÁĞÎªµ¥Î»¾ØÕó I¡£
+    // ç³»ç»ŸåŒ– H çŸ©é˜µ [P I]ï¼šH ä¸º checkNum è¡Œã€codeLength åˆ—ï¼Œå…¶ä¸­
+    // å·¦ä¾§ Inflength åˆ—ä¸º P çŸ©é˜µï¼Œå³ä¾§ checkNum åˆ—ä¸ºå•ä½çŸ©é˜µ Iã€‚
     vector<vector<int>> H;
     int checkNum;// Number of check node.
     int Inflength;// length of information bit.
@@ -250,7 +222,7 @@ private:
     vector<int> CodeWord;
     vector<int> syndrome;
 public:
-    // ¹¹Ôìº¯Êı
+    // æ„é€ å‡½æ•°
     LDPC_Encoder(CheckMatrix checkMatrix) {
         H = checkMatrix.H;
         checkNum = checkMatrix.M;
@@ -258,35 +230,35 @@ public:
         Inflength = codeLength - checkNum;
         //printf("LDPC Encoding...\n");
     }
-    // ±àÂëº¯Êı£ºÀûÓÃÏµÍ³»¯ H ¾ØÕó [P I] ¶ÔĞÅÏ¢ Msg ½øĞĞ±àÂë£¬
-       // ¼ÆËãĞ£ÑéÎ» parity[j] = (sum_{i=0}^{Inflength-1} P[j][i]*Msg[i]) mod2£¬
-       // È»ºó½« CodeWord = [Msg, parity]¡£
+    // ç¼–ç å‡½æ•°ï¼šåˆ©ç”¨ç³»ç»ŸåŒ– H çŸ©é˜µ [P I] å¯¹ä¿¡æ¯ Msg è¿›è¡Œç¼–ç ï¼Œ
+       // è®¡ç®—æ ¡éªŒä½ parity[j] = (sum_{i=0}^{Inflength-1} P[j][i]*Msg[i]) mod2ï¼Œ
+       // ç„¶åå°† CodeWord = [Msg, parity]ã€‚
     vector<int> encode(vector<int> Msg) {
-        // µ÷ÕûÂë×Ö´óĞ¡£¬È·±£ CodeWord ³¤¶ÈÎª codeLength
-        
+        // è°ƒæ•´ç å­—å¤§å°ï¼Œç¡®ä¿ CodeWord é•¿åº¦ä¸º codeLength
+
         CodeWord.resize(codeLength, 0);
 
-        // ½«ĞÅÏ¢Î»¿½±´µ½Âë×ÖÇ° Inflength Î»
+        // å°†ä¿¡æ¯ä½æ‹·è´åˆ°ç å­—å‰ Inflength ä½
         for (int i = 0; i < Inflength; i++) {
             CodeWord[i] = Msg[i];
         }
 
-        // ¼ÆËãĞ£ÑéÎ»¡£¶ÔÓÚÃ¿¸öĞ£Ñé½Úµã j (0 <= j < checkNum)
-        // ×¢Òâ£ºH ¾ØÕóµÄĞĞ j ¶ÔÓ¦µÄ P ²¿·ÖÔÚ H[j][0...Inflength-1]
-        // Ğ£ÑéÎ»Ó¦Âú×ã H[j][0...Inflength-1] * Msg^T + parity[j] = 0 (mod 2)
-        // ¹ÊÓĞ parity[j] = (sum_{i=0}^{Inflength-1} H[j][i]*Msg[i]) mod2.
+        // è®¡ç®—æ ¡éªŒä½ã€‚å¯¹äºæ¯ä¸ªæ ¡éªŒèŠ‚ç‚¹ j (0 <= j < checkNum)
+        // æ³¨æ„ï¼šH çŸ©é˜µçš„è¡Œ j å¯¹åº”çš„ P éƒ¨åˆ†åœ¨ H[j][0...Inflength-1]
+        // æ ¡éªŒä½åº”æ»¡è¶³ H[j][0...Inflength-1] * Msg^T + parity[j] = 0 (mod 2)
+        // æ•…æœ‰ parity[j] = (sum_{i=0}^{Inflength-1} H[j][i]*Msg[i]) mod2.
         for (int j = 0; j < checkNum; j++) {
             int parity = 0;
             for (int i = 0; i < Inflength; i++) {
-                // ³Ë·¨ÔÚ GF(2) ÖĞÎªÓë²Ù×÷£¬ÇóºÍÎªÒì»ò
+                // ä¹˜æ³•åœ¨ GF(2) ä¸­ä¸ºä¸æ“ä½œï¼Œæ±‚å’Œä¸ºå¼‚æˆ–
                 parity ^= (H[j][i] & Msg[i]);
             }
-            // ½«Ğ£ÑéÎ»·ÅÔÚÂë×ÖµÄºó checkNum ¸öÎ»ÖÃÖĞ
+            // å°†æ ¡éªŒä½æ”¾åœ¨ç å­—çš„å checkNum ä¸ªä½ç½®ä¸­
             CodeWord[Inflength + j] = parity;
         }
         return move(CodeWord);
     }
-    // ´òÓ¡±àÂëºóµÄ½á¹û
+    // æ‰“å°ç¼–ç åçš„ç»“æœ
     void PrintResult() {
         cout << "Encoded CodeWord:" << endl;
         for (size_t i = 0; i < codeLength; i++) {
@@ -296,7 +268,7 @@ public:
     }
 
     void CheckSyndrome() {
-        // ¼ÆËã H * c^T£¬½á¹û±£´æÔÚ syndrome ÏòÁ¿ÖĞ
+        // è®¡ç®— H * c^Tï¼Œç»“æœä¿å­˜åœ¨ syndrome å‘é‡ä¸­
         int m = checkNum;
         int n = codeLength;
         syndrome.resize(m);
@@ -304,14 +276,14 @@ public:
         for (int i = 0; i < m; i++) {
             int sum = 0;
             for (int j = 0; j < n; j++) {
-                // Ä£2³Ë·¨ºÍ¼Ó·¨
+                // æ¨¡2ä¹˜æ³•å’ŒåŠ æ³•
                 sum = mod2Add(sum, H[i][j] * CodeWord[j]);
             }
             syndrome[i] = sum % 2;
         }
         PrintSyndrome();
     }
-    void PrintSyndrome(){
+    void PrintSyndrome() {
         cout << "Syndrome:" << endl;
         for (int bit : syndrome) {
             cout << bit;
@@ -323,26 +295,26 @@ public:
 //==========================================DECODER=========================================//
 class LDPC_Decoder {
 private:
-    int Z;                         // puncturing ²ÎÊı
-    vector<vector<int>> H;         // Ğ£Ñé¾ØÕó£¨ĞĞÎªĞ£Ñé½Úµã£¬Ã¿ĞĞ´æ´¢ 0/1£©
-    int numParBits;                // Ğ£Ñé½Úµã¸öÊı = H.size()
-    int numTotBits;                // ×Ü±ÈÌØÊı = H[0].size() + 2*Z£¨¿¼ÂÇÇ°ÖÃ²¹0£©
-    int iterations;                // µü´ú´ÎÊı
-    int numInfBits;                // ĞÅÏ¢Î»¸öÊı
-    vector<double> CodeWord_Rx;    // ĞÅµÀÊä³ö
-    vector<double> llr;            // ¼ÆËã³öµÄLLR½á¹û
-    vector<int> Msg_Rx;            // »Ö¸´µÄĞÅÏ¢±ÈÌØ
-    //vector<int> Permutation;         // ¸ßË¹ÏûÔªÊ±µÄ½»»»ĞÅÏ¢
-    
-    // ·µ»ØÕı¸ººÅ£ºx>=0 ·µ»Ø1£¬·ñÔò·µ»Ø-1
+    int Z;                         // puncturing å‚æ•°
+    vector<vector<int>> H;         // æ ¡éªŒçŸ©é˜µï¼ˆè¡Œä¸ºæ ¡éªŒèŠ‚ç‚¹ï¼Œæ¯è¡Œå­˜å‚¨ 0/1ï¼‰
+    int numParBits;                // æ ¡éªŒèŠ‚ç‚¹ä¸ªæ•° = H.size()
+    int numTotBits;                // æ€»æ¯”ç‰¹æ•° = H[0].size() + 2*Zï¼ˆè€ƒè™‘å‰ç½®è¡¥0ï¼‰
+    int iterations;                // è¿­ä»£æ¬¡æ•°
+    int numInfBits;                // ä¿¡æ¯ä½ä¸ªæ•°
+    vector<double> CodeWord_Rx;    // ä¿¡é“è¾“å‡º
+    vector<double> llr;            // è®¡ç®—å‡ºçš„LLRç»“æœ
+    vector<int> Msg_Rx;            // æ¢å¤çš„ä¿¡æ¯æ¯”ç‰¹
+    //vector<int> Permutation;         // é«˜æ–¯æ¶ˆå…ƒæ—¶çš„äº¤æ¢ä¿¡æ¯
+
+    // è¿”å›æ­£è´Ÿå·ï¼šx>=0 è¿”å›1ï¼Œå¦åˆ™è¿”å›-1
     inline int sign(double x) {
         return (x >= 0) ? 1 : -1;
     }
 
-    // Îª·ÀÖ¹ log(0) ²ÉÓÃÒ»¸ö¼«Ğ¡Öµ£¨realmin£©
+    // ä¸ºé˜²æ­¢ log(0) é‡‡ç”¨ä¸€ä¸ªæå°å€¼ï¼ˆrealminï¼‰
     const double minVal = numeric_limits<double>::min();
 public:
-    // ¹¹Ôìº¯Êı
+    // æ„é€ å‡½æ•°
     LDPC_Decoder(CheckMatrix checkMatrix, int Maxiter, int z)
     {
         H = checkMatrix.H;
@@ -381,24 +353,24 @@ public:
         //Output the result of the LRR calculation.
         cout << "LLR:" << endl;
         for (double bit : llr) {
-            cout << bit<< " ";
+            cout << bit << " ";
         }
         cout << endl;
     }
-    // SPAÒëÂëº¯Êı£¬llr ÎªÊäÈëµÄ LLR ÏòÁ¿£¨Î´²¹ÁãÖ®Ç°£©
+    // SPAè¯‘ç å‡½æ•°ï¼Œllr ä¸ºè¾“å…¥çš„ LLR å‘é‡ï¼ˆæœªè¡¥é›¶ä¹‹å‰ï¼‰
     vector<int> Decode() {
-        // 1. Preprocessing: ²¹Áã£¨¶ÔÓÚÇ°2*Z¸ö punctured bit£©
+        // 1. Preprocessing: è¡¥é›¶ï¼ˆå¯¹äºå‰2*Zä¸ª punctured bitï¼‰
         int preZeros = 2 * Z;
-        vector<double> Qv(preZeros, 0.0); // Ç° preZeros ¸öÔªËØ²¹0
+        vector<double> Qv(preZeros, 0.0); // å‰ preZeros ä¸ªå…ƒç´ è¡¥0
         Qv.insert(Qv.end(), llr.begin(), llr.end());
 
-        // 2. ³õÊ¼»¯ÏûÏ¢¾ØÕó Rcv£ºÎ¬¶ÈÎª [numParBits x numTotBits]£¨×¢Òâ£ºnumTotBits ÒÑ¾­¿¼ÂÇ²¹Áã£©
+        // 2. åˆå§‹åŒ–æ¶ˆæ¯çŸ©é˜µ Rcvï¼šç»´åº¦ä¸º [numParBits x numTotBits]ï¼ˆæ³¨æ„ï¼šnumTotBits å·²ç»è€ƒè™‘è¡¥é›¶ï¼‰
         vector<vector<double>> Rcv(numParBits, vector<double>(numTotBits, 0.0));
 
         for (int iter = 0; iter < iterations; ++iter) {
-            // ±éÀúÃ¿¸öĞ£Ñé½Úµã£¨ĞĞ£©
+            // éå†æ¯ä¸ªæ ¡éªŒèŠ‚ç‚¹ï¼ˆè¡Œï¼‰
             for (int checkIdx = 0; checkIdx < numParBits; ++checkIdx) {
-                // Ñ°ÕÒ¸ÃĞ£Ñé½Úµã¶ÔÓ¦ H µÄĞĞÖĞÎª 1 µÄ±äÁ¿½ÚµãË÷Òı
+                // å¯»æ‰¾è¯¥æ ¡éªŒèŠ‚ç‚¹å¯¹åº” H çš„è¡Œä¸­ä¸º 1 çš„å˜é‡èŠ‚ç‚¹ç´¢å¼•
                 vector<int> nbVarNodes;
                 for (int varIdx = 0; varIdx < H[checkIdx].size(); ++varIdx) {
                     if (H[checkIdx][varIdx] == 1) {
@@ -406,45 +378,45 @@ public:
                     }
                 }
 
-                // ¼ÆËã tmpLlr£º¶ÔÓÚÃ¿¸öÁÚ½ÓµÄ±äÁ¿½Úµã£¬
+                // è®¡ç®— tmpLlrï¼šå¯¹äºæ¯ä¸ªé‚»æ¥çš„å˜é‡èŠ‚ç‚¹ï¼Œ
                 // tmpLlr = Qv(varIdx) - Rcv(checkIdx, varIdx)
                 vector<double> tmpLlr;
                 for (int varIdx : nbVarNodes) {
                     tmpLlr.push_back(Qv[varIdx] - Rcv[checkIdx][varIdx]);
                 }
 
-                // ¼ÆËã S µÄ·ùÖµ²¿·Ö£ºSmag = sum( -log(minVal + tanh(|tmpLlr|/2) ) )
+                // è®¡ç®— S çš„å¹…å€¼éƒ¨åˆ†ï¼šSmag = sum( -log(minVal + tanh(|tmpLlr|/2) ) )
                 double Smag = 0.0;
                 for (double val : tmpLlr) {
-                    // ÕâÀï¼ÓÉÏ minVal ±ÜÃâ tanh(0) µ¼ÖÂ log(0)
+                    // è¿™é‡ŒåŠ ä¸Š minVal é¿å… tanh(0) å¯¼è‡´ log(0)
                     Smag += -log(minVal + tanh(fabs(val) / 2.0));
                 }
 
-                // ¼ÆËã S µÄ·ûºÅ²¿·Ö£ºÍ³¼Æ tmpLlr ÖĞ¸ºÊıµÄ¸öÊı£¬ÈôÅ¼Êı Ssign = +1£¬·ñÔò -1
+                // è®¡ç®— S çš„ç¬¦å·éƒ¨åˆ†ï¼šç»Ÿè®¡ tmpLlr ä¸­è´Ÿæ•°çš„ä¸ªæ•°ï¼Œè‹¥å¶æ•° Ssign = +1ï¼Œå¦åˆ™ -1
                 int negCount = 0;
                 for (double val : tmpLlr) {
                     if (val < 0) negCount++;
                 }
                 int Ssign = (negCount % 2 == 0) ? 1 : -1;
 
-                // ¶ÔÓÚÃ¿¸öÁÚ½ÓµÄ±äÁ¿½Úµã£¬¸üĞÂÏûÏ¢
+                // å¯¹äºæ¯ä¸ªé‚»æ¥çš„å˜é‡èŠ‚ç‚¹ï¼Œæ›´æ–°æ¶ˆæ¯
                 for (int varIdx : nbVarNodes) {
                     double Qtmp = Qv[varIdx] - Rcv[checkIdx][varIdx];
                     double QtmpMag = -log(minVal + tanh(fabs(Qtmp) / 2.0));
-                    int QtmpSign = sign(Qtmp); // ÕâÀï²»¼Ó minVal£¬Òò minVal ºÜĞ¡
+                    int QtmpSign = sign(Qtmp); // è¿™é‡Œä¸åŠ  minValï¼Œå›  minVal å¾ˆå°
 
-                    // ¸üĞÂ Rcv ÏûÏ¢£º²Î¿¼¹«Ê½ Rcv = phi^-1( S - phi(Qtmp) )
-                    // ÕâÀï²ÉÓÃ -log(minVal + tanh(|S_mag - QtmpMag|/2)) ×÷ÎªÏûÏ¢·ùÖµ
+                    // æ›´æ–° Rcv æ¶ˆæ¯ï¼šå‚è€ƒå…¬å¼ Rcv = phi^-1( S - phi(Qtmp) )
+                    // è¿™é‡Œé‡‡ç”¨ -log(minVal + tanh(|S_mag - QtmpMag|/2)) ä½œä¸ºæ¶ˆæ¯å¹…å€¼
                     double newMsg = Ssign * QtmpSign * (-log(minVal + tanh(fabs(Smag - QtmpMag) / 2.0)));
                     Rcv[checkIdx][varIdx] = newMsg;
 
-                    // ¸üĞÂ Qv£º Qv(varIdx) = Qtmp + Rcv(checkIdx, varIdx)
+                    // æ›´æ–° Qvï¼š Qv(varIdx) = Qtmp + Rcv(checkIdx, varIdx)
                     Qv[varIdx] = Qtmp + newMsg;
                 }
             }
         }
 
-        // 4. Ó²ÅĞ¾ö£º¶ÔÓÚĞÅÏ¢±ÈÌØ²¿·Ö£¨¼ÙÉèĞÅÏ¢±ÈÌØ´æ´¢ÔÚ Qv µÄÇ° numInfBits ¸öÎ»ÖÃ£©
+        // 4. ç¡¬åˆ¤å†³ï¼šå¯¹äºä¿¡æ¯æ¯”ç‰¹éƒ¨åˆ†ï¼ˆå‡è®¾ä¿¡æ¯æ¯”ç‰¹å­˜å‚¨åœ¨ Qv çš„å‰ numInfBits ä¸ªä½ç½®ï¼‰
         Msg_Rx.resize(numInfBits);
         for (int i = 0; i < numInfBits; ++i) {
             Msg_Rx[i] = (Qv[i] < 0) ? 1 : 0;
@@ -454,9 +426,9 @@ public:
     /*
     void Restore_Order() {
         vector<int> Msg_Rx_temp(Msg_Rx);
-        // ¸ù¾İPermutation»Ö¸´Ô­À´µÄË³Ğò
+        // æ ¹æ®Permutationæ¢å¤åŸæ¥çš„é¡ºåº
         for (size_t i = 0; i < numTotBits; ++i) {
-            // Permutation[i] ±íÊ¾ÏµÍ³»¯ºóµÚ i ¸ö±ÈÌØÔÚÔ­Ê¼ÏûÏ¢ÖĞµÄÎ»ÖÃ
+            // Permutation[i] è¡¨ç¤ºç³»ç»ŸåŒ–åç¬¬ i ä¸ªæ¯”ç‰¹åœ¨åŸå§‹æ¶ˆæ¯ä¸­çš„ä½ç½®
             Msg_Rx_temp[Permutation[i]] = Msg_Rx[i];
         }
         Msg_Rx = Msg_Rx_temp;
@@ -465,7 +437,7 @@ public:
     */
     void PrintDecodeRes() {
         //Output the result of the decoder.
-        
+
         cout << "The recovered messages:" << endl;
         for (int i = 0; i < numInfBits; ++i) {
             cout << Msg_Rx[i] << "";
@@ -475,137 +447,18 @@ public:
 };
 
 
-//==========================================CHANNEL SIMU=========================================//
-
-class Channel {
-public:
-    //Pythonº¯ÊıÂ·¾¶Ïà²ÎÊı
-    PyObject* pName;
-    PyObject* pModule;
-    PyObject* pFunc;
-
-    //Pythonº¯Êı²ÎÊı
-    PyObject* pList;
-    PyObject* pArgs;
-    PyObject* pValue;
-
-    //µü´úÖ¸Õë
-    PyObject* pRow;
-    PyObject* pVal;
-    PyObject* pInner;
-    PyObject* pNum;
-
-    void InitializeChannel() {
-
-        Py_Initialize();//Ê¹ÓÃpythonÖ®Ç°£¬Òªµ÷ÓÃPy_Initialize();Õâ¸öº¯Êı½øĞĞ³õÊ¼»¯
-
-        if (!Py_IsInitialized())
-        {
-            throw runtime_error("³õÊ¼»¯Ê§°Ü£¡");
-        }
-
-        // ÉèÖÃ Python Ä£¿éËÑË÷Â·¾¶
-        PyRun_SimpleString("import sys");
-        PyRun_SimpleString("sys.path.append(r'D:\\DeSP-main')");  // Ìí¼ÓÎÄ¼ş¼ĞÂ·¾¶
-
-        /*¼ÓÔØÒªµ÷ÓÃµÄpythonÎÄ¼şÃû³Æ£¬µ±Ç°²âÊÔÎÄ¼şÃû³Æ£ºDNAChannel.py*/
-        pName = PyUnicode_DecodeFSDefault("LDPC-BCH_Two-Layer_cost_optimization");
-        pModule = PyImport_Import(pName);
-        Py_XDECREF(pName);
-
-        if (pModule == NULL) {
-            PyErr_Print();
-            throw runtime_error("ÎŞ·¨¼ÇÔØÄ£¿é LDPC-BCH_Two-Layer_cost_optimization");
-        }
-        // »ñÈ¡Ä£¿éÖĞµÄº¯Êı PyDNAChannel
-        pFunc = PyObject_GetAttrString(pModule, "DNAChannel");
-        if (!pFunc || !PyCallable_Check(pFunc)) {
-            PyErr_Print();
-            throw runtime_error("ÕÒ²»µ½º¯Êı DNAChannel");
-        }
-        return;
-    }
-
-    vector<vector<double>> DNAChal(vector<vector<int>> CodeWrd_Tx, double Noise_Lvl, int sequencingDepth, int innerRedundancy) {
-        vector<vector<double>> msgRx;
-        // ¹¹ÔìµÚÒ»¸ö²ÎÊı£º½« CodeWrd_Tx ×ª»»Îª Python µÄ list-of-lists
-        pList = PyList_New(CodeWrd_Tx.size());
-        for (size_t i = 0; i < CodeWrd_Tx.size(); i++) {
-            pRow = PyList_New(CodeWrd_Tx[i].size());
-            for (size_t j = 0; j < CodeWrd_Tx[i].size(); j++) {
-                pVal = PyLong_FromLong(CodeWrd_Tx[i][j]);
-                PyList_SetItem(pRow, j, pVal); // ÉèÖÃºó pVal µÄÒıÓÃÈ¨ÓÉ pRow ¹ÜÀí
-            }
-            PyList_SetItem(pList, i, pRow);
-        }
-
-        // ¹¹Ôì²ÎÊıÔª×é£¬°üº¬Á½¸ö²ÎÊı£ºlist-of-lists ºÍ Noise_Lvl£¨×ª»»Îª Python float£©
-        pArgs = PyTuple_New(4);
-        PyTuple_SetItem(pArgs, 0, pList);  // pList µÄÒıÓÃ×ªÒÆµ½Ôª×éÖĞ
-        PyTuple_SetItem(pArgs, 1, PyFloat_FromDouble(Noise_Lvl));
-        PyTuple_SetItem(pArgs, 2, PyLong_FromLong(sequencingDepth));
-        PyTuple_SetItem(pArgs, 3, PyLong_FromLong(innerRedundancy));
-
-
-        // µ÷ÓÃ Python º¯Êı PyDNAChannel(list-of-lists, Noise_Lvl)
-        pValue = PyObject_CallObject(pFunc, pArgs);
-        Py_XDECREF(pArgs);
-        //Py_XDECREF(pList);
-        if (pValue != NULL) {
-            // pValue Ó¦¸ÃÊÇÒ»¸ö list-of-lists£¬¶ÔÆä½øĞĞ×ª»»
-            if (PyList_Check(pValue)) {
-                Py_ssize_t outerSize = PyList_Size(pValue);
-                msgRx.resize(outerSize);
-                for (Py_ssize_t i = 0; i < outerSize; i++) {
-                    pInner = PyList_GetItem(pValue, i); // ½èÓÃÒıÓÃ
-                    if (PyList_Check(pInner)) {
-                        Py_ssize_t innerSize = PyList_Size(pInner);
-                        msgRx[i].resize(innerSize);
-                        for (Py_ssize_t j = 0; j < innerSize; j++) {
-                            pNum = PyList_GetItem(pInner, j);
-                            msgRx[i][j] = PyFloat_AsDouble(pNum);
-                        }
-                    }
-                }
-            }
-            else {
-                PyErr_Print();
-                throw runtime_error("·µ»Ø½á¹û²»ÊÇÁĞ±í¸ñÊ½£¡");
-            }
-            Py_XDECREF(pValue);
-            //Py_XDECREF(pInner);
-            //Py_XDECREF(pNum);
-            //Py_XDECREF(pRow);
-        }
-        else {
-            PyErr_Print();
-            throw runtime_error("µ÷ÓÃ DNAChannel Ê§°Ü£¡");
-        }
-
-        return move(msgRx);
-    }
-
-
-    void CloseChannel() {
-        Py_XDECREF(pFunc);
-        Py_XDECREF(pModule);
-        Py_Finalize();
-    }
-
-};
-
 
 //######################################################################################//
 //                                        main
-// ÃüÁîĞĞÊäÈë 4 ¸ö²ÎÊı£º-NoiseLevel [Pe] -SequencingDepth [²âĞòÉî¶È] -InnerRedundancy [ÄÚÂë×ÜÈßÓàÊıÁ¿]
+// å‘½ä»¤è¡Œè¾“å…¥ 4 ä¸ªå‚æ•°ï¼š-NoiseLevel [Pe] -SequencingDepth [æµ‹åºæ·±åº¦] -InnerRedundancy [å†…ç æ€»å†—ä½™æ•°é‡]
 // 
 //######################################################################################//
 
 int main(int argc, char* argv[]) {
     // Reading parameter form command line.
-    if (argc < 7) {  // È·±£ÖÁÉÙÓĞ7¸ö²ÎÊı£¨µÚÒ»¸öÊÇ³ÌĞòÃû£©
+    if (argc < 7) {  // ç¡®ä¿è‡³å°‘æœ‰7ä¸ªå‚æ•°ï¼ˆç¬¬ä¸€ä¸ªæ˜¯ç¨‹åºåï¼‰
         std::cerr << "Usage: " << argv[0] << "Should have 3 parameters: Noise Level, Sequencing Depth and InnerRedundancy" << std::endl;
-        return 1;  // ·µ»Ø´íÎóÂë
+        return 1;  // è¿”å›é”™è¯¯ç 
     }
     const double NoiseLvl = stod(argv[2]); // Nosie level of the DNA channel
     const int sequencingDepth = stoi(argv[4]);
@@ -613,13 +466,13 @@ int main(int argc, char* argv[]) {
     const string HmatrixPath = string(argv[8]);
 
     //======================Read the Parity Check Matrix======================//
-    CheckMatrix CheckMtx;//¶¨Òåcheck matrixµÄÀà
+    CheckMatrix CheckMtx;//å®šä¹‰check matrixçš„ç±»
     CheckMtx.read_H_matrix(HmatrixPath);
     const int N = CheckMtx.N;
     const int M = CheckMtx.M;
-    //CheckMtx.PrintH();//´òÓ¡ÎÄ¼ş¶Á³öµÄH¾ØÕó¡£
-    CheckMtx.Gaussian_Elimination();//¶ÔÔ­Ê¼¾ØÕó½øĞĞ¸ßË¹ÏûÔª¡£
-    //CheckMtx.PrintH();//´òÓ¡¸ßË¹ÏûÔªºóµÄH¾ØÕó¡£
+    //CheckMtx.PrintH();//æ‰“å°æ–‡ä»¶è¯»å‡ºçš„HçŸ©é˜µã€‚
+    CheckMtx.Gaussian_Elimination();//å¯¹åŸå§‹çŸ©é˜µè¿›è¡Œé«˜æ–¯æ¶ˆå…ƒã€‚
+    //CheckMtx.PrintH();//æ‰“å°é«˜æ–¯æ¶ˆå…ƒåçš„HçŸ©é˜µã€‚
 
     // Print the coding configuration to the terminal.
     double R_o = static_cast<double>(N - M) / N;
@@ -631,49 +484,49 @@ int main(int argc, char* argv[]) {
     printf("Sequencing Cost: %.2f bases/bit\n", sequencingCost);
 
 
-    // ´´½¨²¢´ò¿ªÎÄ¼ş£¬¸²¸Ç¾ÉÎÄ¼ş²¢Ğ´Èë±êÌâĞĞ
+    // åˆ›å»ºå¹¶æ‰“å¼€æ–‡ä»¶ï¼Œè¦†ç›–æ—§æ–‡ä»¶å¹¶å†™å…¥æ ‡é¢˜è¡Œ
      // Use ostringstream to build the filename string
     std::ostringstream oss;
     // Format the double to fixed-point notation with 2 decimal places
     oss << "\\Cost_Optimization_Ro-" << fixed << std::setprecision(2) << R_o << "_d-" << to_string(sequencingDepth) << ".csv";
 
     // Get the final filename as a string
-    string filenameData = oss.str(); 
+    string filenameData = oss.str();
 
-    // ¼ì²éÎÄ¼şÊÇ·ñ´æÔÚ£¬Èç¹û²»´æÔÚÔò´´½¨ĞÂÎÄ¼ş²¢Ğ´Èë±êÌâĞĞ
+    // æ£€æŸ¥æ–‡ä»¶æ˜¯å¦å­˜åœ¨ï¼Œå¦‚æœä¸å­˜åœ¨åˆ™åˆ›å»ºæ–°æ–‡ä»¶å¹¶å†™å…¥æ ‡é¢˜è¡Œ
     std::ifstream infile(filePathData + filenameData);
     if (!infile.good()) {
-        // Èç¹ûÎÄ¼ş²»´æÔÚ£¬´´½¨²¢Ğ´Èë±êÌâĞĞ
+        // å¦‚æœæ–‡ä»¶ä¸å­˜åœ¨ï¼Œåˆ›å»ºå¹¶å†™å…¥æ ‡é¢˜è¡Œ
         ofstream file(filePathData + filenameData);
         if (!file.is_open()) {
             cerr << "Failed to create Experiment.csv!" << endl;
             return 1;
         }
         file << "PE,Sequencing Depth,Message Block Number, R_o,R_i,Error Frame Count,Reading Cost\n";
-        file.close(); // ¹Ø±ÕÎÄ¼şÒÔÊÍ·Å×ÊÔ´
+        file.close(); // å…³é—­æ–‡ä»¶ä»¥é‡Šæ”¾èµ„æº
     }
     //else {
     //    cout << "File already exists: " << filePathData + filename << endl;
     //}
 
-    //³õÊ¼»¯Ëæ»úÏûÏ¢·¢ÉúÆ÷
+    //åˆå§‹åŒ–éšæœºæ¶ˆæ¯å‘ç”Ÿå™¨
     const int K = N - M;
     MessageGenerator MsgGen;
-    vector<vector<int>> msgsTx(sequenceNum,vector<int>(K)); //Contianer for the generated message
+    vector<vector<int>> msgsTx(sequenceNum, vector<int>(K)); //Contianer for the generated message
 
-    //³õÊ¼»¯LDPC±àÂëÆ÷
+    //åˆå§‹åŒ–LDPCç¼–ç å™¨
     LDPC_Encoder Encoder(CheckMtx);
     vector<vector<int>> codeWrds_Tx(sequenceNum, vector<int>(N));
 
     int RepetitionRequired = ceil(1e6 / (CheckMtx.N - CheckMtx.M)); //Minmal Experimental Repetition Required to achieve 1e-6 FER.
     vector<vector<double>> codeWrds_Rx(sequenceNum, vector<double>(static_cast<int>(N))); // Container for the channel output.
-    // ³õÊ¼»¯LDPCÒëÂëÆ÷
+    // åˆå§‹åŒ–LDPCè¯‘ç å™¨
     LDPC_Decoder Decoder(CheckMtx, 30, 0);
     vector<vector<int>> msgsRx(sequenceNum, vector<int>(K)); //Container for the decoded message.
 
     Duration Simu;
-    //Simu.simuStart();//¼ÇÂ¼ÊµÑé¿ªÊ¼µÄÊ±¼ä
-    Simu.expStart();//¼ÇÂ¼±¾´ÎÊµÑé¿ªÊ¼µÄÊ±¼ä
+    //Simu.simuStart();//è®°å½•å®éªŒå¼€å§‹çš„æ—¶é—´
+    Simu.expStart();//è®°å½•æœ¬æ¬¡å®éªŒå¼€å§‹çš„æ—¶é—´
     //======================Generate Random Messages======================//
 
     for (int i = 0; i < sequenceNum; ++i) {
@@ -693,11 +546,11 @@ int main(int argc, char* argv[]) {
 
 
     //======================Call DNA Channle in Python======================//
-    // Æô¶¯£¬³õÊ¼»¯Python Channel
+    // å¯åŠ¨ï¼Œåˆå§‹åŒ–Python Channel
     Channel DNAChannel;
     DNAChannel.InitializeChannel();
     codeWrds_Rx = DNAChannel.DNAChal(codeWrds_Tx, NoiseLvl, sequencingDepth, innerRedundancy);
-    // ¹Ø±Õ£¬PythonĞÅµÀ
+    // å…³é—­ï¼ŒPythonä¿¡é“
     DNAChannel.CloseChannel();
     //======================LDPC Decoding and Calculation of FER========================//
     for (int i = 0; i < sequenceNum; ++i) {
@@ -705,41 +558,41 @@ int main(int argc, char* argv[]) {
         Decoder.to_LLR(codeWrds_Rx[i]);
         msgsRx[i] = Decoder.Decode();
     }
-    int errorCount = 0; // ÓÃÓÚÍ³¼Æ´íÎóÖ¡µÄÊıÁ¿
-    // ±éÀúÃ¿Ò»ÁĞ
+    int errorCount = 0; // ç”¨äºç»Ÿè®¡é”™è¯¯å¸§çš„æ•°é‡
+    // éå†æ¯ä¸€åˆ—
     for (int col = 0; col < msgsTx[0].size(); ++col) {
-        bool hasError = false; // ±ê¼Çµ±Ç°ÁĞÊÇ·ñ´æÔÚ´íÎó±ÈÌØ
+        bool hasError = false; // æ ‡è®°å½“å‰åˆ—æ˜¯å¦å­˜åœ¨é”™è¯¯æ¯”ç‰¹
 
-        // ±éÀúÃ¿Ò»ĞĞ£¬¼ì²éµ±Ç°ÁĞÊÇ·ñÓĞ´íÎó±ÈÌØ
+        // éå†æ¯ä¸€è¡Œï¼Œæ£€æŸ¥å½“å‰åˆ—æ˜¯å¦æœ‰é”™è¯¯æ¯”ç‰¹
         for (int row = 0; row < sequenceNum; ++row) {
             if (msgsTx[row][col] != msgsRx[row][col]) {
-                hasError = true; // Èç¹û·¢ÏÖ´íÎó±ÈÌØ£¬±ê¼ÇÎª true
-                break; // ÍË³öµ±Ç°ÁĞµÄ¼ì²é
+                hasError = true; // å¦‚æœå‘ç°é”™è¯¯æ¯”ç‰¹ï¼Œæ ‡è®°ä¸º true
+                break; // é€€å‡ºå½“å‰åˆ—çš„æ£€æŸ¥
             }
         }
         if (hasError) {
-            errorCount++; // Èç¹ûµ±Ç°ÁĞÓĞ´íÎó±ÈÌØ£¬´íÎóÖ¡¼ÆÊıÆ÷¼Ó 1
+            errorCount++; // å¦‚æœå½“å‰åˆ—æœ‰é”™è¯¯æ¯”ç‰¹ï¼Œé”™è¯¯å¸§è®¡æ•°å™¨åŠ  1
         }
     }
-    //double FER = static_cast<double>(errorCount) / sequenceNum; // ¼ÆËãÖ¡´íÎóÂÊ
+    //double FER = static_cast<double>(errorCount) / sequenceNum; // è®¡ç®—å¸§é”™è¯¯ç‡
     cout << "\nError Frame of this experiment: " << errorCount << endl;
 
-    // ±£´æÎÄ¼ş£¬²¢Ê¹ÓÃthrowÃüÁî±£´æµ±Ç°µÄµ÷ÊÔĞÅÏ¢¡£
-    // ÒÔ×·¼ÓÄ£Ê½´ò¿ªÎÄ¼ş²¢Ğ´ÈëÊı¾İĞĞ
-    ofstream outfile(filePathData+filenameData, ios::app);
+    // ä¿å­˜æ–‡ä»¶ï¼Œå¹¶ä½¿ç”¨throwå‘½ä»¤ä¿å­˜å½“å‰çš„è°ƒè¯•ä¿¡æ¯ã€‚
+    // ä»¥è¿½åŠ æ¨¡å¼æ‰“å¼€æ–‡ä»¶å¹¶å†™å…¥æ•°æ®è¡Œ
+    ofstream outfile(filePathData + filenameData, ios::app);
     if (!outfile.is_open()) {
         cerr << "Failed to open Experiment.csv for appending!" << endl;
         system("pause");
         return 1;
     }
-    // Ğ´ÈëÊı¾İĞĞ
-    outfile << fixed << setprecision(2) << NoiseLvl << "," // ±£ÁôÁ½Î»Ğ¡Êı
-        << sequencingDepth << ","                                  
+    // å†™å…¥æ•°æ®è¡Œ
+    outfile << fixed << setprecision(2) << NoiseLvl << "," // ä¿ç•™ä¸¤ä½å°æ•°
+        << sequencingDepth << ","
         << N - M << ","
-        << R_o << ","                                  
-        << R_i << ","                                
-		<< errorCount << ","                           
-        << sequencingCost  
+        << R_o << ","
+        << R_i << ","
+        << errorCount << ","
+        << sequencingCost
         << "\n";
     outfile.close();
     cout << "Simulation data saved to " << filenameData << endl;
