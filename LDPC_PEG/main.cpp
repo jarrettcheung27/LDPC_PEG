@@ -593,6 +593,7 @@ int main(int argc, char* argv[]) {
             cerr << "Error: No messages read from input file." << endl;
             return 1;
         }
+		 vector<vector<int>> msgsRx(sequenceNum, vector<int>(K)); // 用于存储解码后的消息序列
         // 初始化LDPC解码器
         LDPC_Decoder Decoder(CheckMtx, iter, 0); // 这里的 Z 设置为 0，因为不需要前置补零
         for (int i = 0; i < sequenceNum; ++i) {
@@ -602,12 +603,12 @@ int main(int argc, char* argv[]) {
         }
         int errorCount = 0; // 用于统计错误帧的数量
         // 遍历每一列
-        for (int col = 0; col < msgsTx[0].size(); ++col) {
+        for (int col = 0; col < msgsRx[0].size(); ++col) {
             bool hasError = false; // 标记当前列是否存在错误比特
 
             // 遍历每一行，检查当前列是否有错误比特
             for (int row = 0; row < sequenceNum; ++row) {
-                if (msgsTx[row][col] != msgsRx[row][col]) {
+                if (msgsRx[row][col] != msgsRx[row][col]) {
                     hasError = true; // 如果发现错误比特，标记为 true
                     break; // 退出当前列的检查
                 }
@@ -617,7 +618,7 @@ int main(int argc, char* argv[]) {
             }
         }
         cout    << "Total number of error frames: " << errorCount << endl;
-        WriteEncodedMessages(msgsTx, output_filepath);
+        WriteEncodedMessages(msgsRx, output_filepath);
     }   
     return 0;
 }
