@@ -79,6 +79,7 @@ vector<vector<int>> ReadMsgs(const string& input_filepath,const int& K, const in
     // Args:        
     //   input_filepath: 输入文件路径，包含消息序列。
     //   K: 每个消息序列的长度。
+    //   sequenceNum: 需要读取的消息序列数量。
     vector<vector<int>> msgsTx(sequenceNum, vector<int>(K)); // 初始化 msgsTx 容器
     ifstream msgFile(input_filepath);
     if (!msgFile.is_open()) {
@@ -124,7 +125,44 @@ void WriteEncodedMessages(const vector<vector<int>>& codeWrds_Tx, const string& 
         outFile.close();
         cout << "Encoded messages written to " << output_filepath << endl;
     }
-//==========================================ENCODER=========================================//
+
+vector<vector<double>> ReadVotingscore(const string& input_filepath, const int& N, const int& sequenceNum) { 
+    // 从文件中读取投票得分，返回一个二维向量 msgsRx，其中每行代表一个信道输出，用于后续计算LLR。
+    // Args:        
+    //   input_filepath: 输入文件路径，包含投票得分序列。
+    //   N: 每个投票得分序列的长度。
+    //   sequenceNum: 需要读取的投票得分序列数量。
+
+    vector<vector<double>> msgsRx(sequenceNum, vector<double>(N));
+    ifstream scoreFile(input_filepath);
+    if (!scoreFile.is_open()) {
+        cerr << "Failed to open input file: " << input_filepath << endl;
+        return vector<vector<double>>();
+    }
+    string line;
+    int msgIdx = 0;
+    while (getline(scoreFile, line) && msgIdx < sequenceNum) {
+        vector<double> scores;
+        istringstream iss(line);
+        double val;
+        while (iss >> val) {
+            scores.push_back(val);
+        }
+        if (scores.size() != N) {
+            cerr << "Error: Line " << msgIdx + 1 << " does not contain exactly " << N << " scores." << endl;
+            return vector<vector<double>>();
+        }
+        msgsRx[msgIdx] = scores;
+        msgIdx++;
+    }
+    if (msgIdx < sequenceNum) {
+        cerr << "Error: Not enough voting score sequences in input file." << endl;
+        return vector<vector<double>>();
+    }
+    scoreFile.close();
+    return msgsRx;
+}  
+    //==========================================ENCODER=========================================//
 // 定义稀疏校验矩阵H的类
 class CheckMatrix {
 public:
@@ -515,8 +553,9 @@ int main(int argc, char* argv[]) {
     //======================Read the Parity Check Matrix======================//
     CheckMatrix CheckMtx;//定义check matrix的类
     CheckMtx.read_H_matrix(HmatrixPath);
-    const int N = CheckMtx.N;
-    const int M = CheckMtx.M;
+    const int N = CheckMtx.N; // N为码字长度
+    const int M = CheckMtx.M; // M为校验位长度
+    const int K = N - M; // K为信息位长度
     //CheckMtx.PrintH();//打印文件读出的H矩阵。
     CheckMtx.Gaussian_Elimination();//对原始矩阵进行高斯消元。
     //CheckMtx.PrintH();//打印高斯消元后的H矩阵。
@@ -524,7 +563,6 @@ int main(int argc, char* argv[]) {
     if (mode == "encode")
     {
         //======================从 input_filepath 读取待编码的信息序列======================//
-        const int K = N - M;
         vector<vector<int>> msgsTx(sequenceNum, vector<int>(K)); // Container for the generated message
         msgsTx = ReadMsgs(input_filepath, K, sequenceNum); // 从文件中读取消息序列
         if (msgsTx.empty()) {
@@ -548,9 +586,15 @@ int main(int argc, char* argv[]) {
     }
     else {
         //======================LDPC Decoding ========================//
-        /*
-        msgsTx[msgIdx] = bits;
-        msgIdx++;
+        //======================从 input_filepath 读取待编码的投票得分序列======================//
+        vector<vector<double>> codeWrds_Rx(sequenceNum, vector<double>(N)); // Container for the received codewords
+        codeWrds_Rx= ReadVotingscore(input_filepath, N, sequenceNum); // 从文件中读取消息序列
+        if (codeWrds_Rx.empty()) {
+            cerr << "Error: No messages read from input file." << endl;
+            return 1;
+        }
+        // 初始化LDPC解码器
+        LDPC_Decoder Decoder(CheckMtx, iter, 0); // 这里的 Z 设置为 0，因为不需要前置补零
         for (int i = 0; i < sequenceNum; ++i) {
             cout << "LDPC decoding..." << i + 1 << "/" << sequenceNum << "\r";
             Decoder.to_LLR(codeWrds_Rx[i]);
@@ -572,8 +616,8 @@ int main(int argc, char* argv[]) {
                 errorCount++; // 如果当前列有错误比特，错误帧计数器加 1
             }
         }
-        */
-    }
-    
+        cout    << "Total number of error frames: " << errorCount << endl;
+        WriteEncodedMessages(msgsTx, output_filepath);
+    }   
     return 0;
 }
